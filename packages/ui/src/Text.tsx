@@ -10,9 +10,12 @@ type TextVariant =
   | 'h1' 
   | 'h2' 
   | 'h3' 
+  | 'h4'
   | 'body' 
   | 'caption' 
-  | 'button';
+  | 'captionSm'
+  | 'button'
+  | 'buttonSm';
 
 interface TextProps {
   children: React.ReactNode;
@@ -71,6 +74,12 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     marginBottom: 8,
   },
+  h4: {
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
+    marginBottom: 6,
+  },
   body: {
     fontSize: 16,
     fontWeight: 'normal',
@@ -83,9 +92,20 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     opacity: 0.7,
   },
+  captionSm: {
+    fontSize: 11,
+    fontWeight: 'normal',
+    lineHeight: 14,
+    opacity: 0.7,
+  },
   button: {
-    fontSize: 16,
+    fontSize: 8,
     fontWeight: '600',
     lineHeight: 20,
+  },
+  buttonSm: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 18,
   },
 });

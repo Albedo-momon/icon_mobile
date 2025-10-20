@@ -56,6 +56,8 @@ export const Button: React.FC<ButtonProps> = ({
     }
   };
 
+  const textVariant = size === 'small' ? 'buttonSm' : 'button';
+
   return (
     <TouchableOpacity
       style={buttonStyle}
@@ -66,7 +68,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator color={getTextColor()} size="small" />
       ) : (
-        <Text variant="button" color={getTextColor()}>
+        <Text variant={textVariant} color={getTextColor()}>
           {title}
         </Text>
       )}
@@ -98,8 +100,8 @@ const styles = StyleSheet.create({
   },
   // Sizes
   small: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 0,
     minHeight: 32,
   },
   medium: {

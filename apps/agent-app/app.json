@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "iconagent",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,12 +17,16 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.icon.agentapp",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
+    },
+    "extra": {
+      "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_dG9nZXRoZXItcGVhY29jay0yNi5jbGVyay5hY2NvdW50cy5kZXYk"
     },
     "web": {
       "favicon": "./assets/favicon.png"

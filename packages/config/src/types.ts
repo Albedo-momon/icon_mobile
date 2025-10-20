@@ -116,10 +116,16 @@ export type RootStackParamList = {
   Services: undefined;
 };
 
+export type ServiceType = 'IN_HOUSE' | 'IN_SHOP' | 'PC_BUILD';
+
 export type AgentStackParamList = {
   Dashboard: undefined;
-  HealthCheck: undefined;
   Settings: undefined;
+  Profile: undefined;
+  Requests: undefined;
+  RequestDetail: { requestId: string; serviceType: ServiceType; title?: string; customerName?: string; issueType?: string; issueDescription?: string; clientAddress?: string; clientPhone?: string; clientEmail?: string; nextVisitAt?: string; status?: 'NEW'|'ACCEPTED'|'IN_PROGRESS'|'COMPLETED'|'CANCELLED' };
+  ServiceFlow: { requestId: string; serviceType: ServiceType; etaMinutes?: number };
+  Timeline: { requestId: string; events?: any[] };
 };
 
 // Form types

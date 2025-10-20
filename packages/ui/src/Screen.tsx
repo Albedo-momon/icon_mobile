@@ -2,11 +2,11 @@ import React from 'react';
 import {
   View,
   ScrollView,
-  SafeAreaView,
   StyleSheet,
   ViewStyle,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -49,7 +49,7 @@ export const Screen: React.FC<ScreenProps> = ({
     return (
       <>
         <StatusBar barStyle="dark-content" backgroundColor={backgroundColor} />
-        <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
+        <SafeAreaView edges={["top"]} style={[styles.safeArea, { backgroundColor }]}> 
           {content}
         </SafeAreaView>
       </>

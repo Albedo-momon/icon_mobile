@@ -1,193 +1,86 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Alert, RefreshControl, ScrollView } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { Screen, Text, Button } from '@icon/ui';
+import { agentService } from '@icon/api';
+import { useAgent } from '../providers/AgentProvider';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AgentStackParamList } from '@icon/config';
-import { Screen, Text, Button } from '@icon/ui';
-import { healthService, agentService } from '@icon/api';
-import { useAgent } from '../providers/AgentProvider';
+import AdminHeader from '../components/AdminHeader';
+import StatCard from '../components/StatCard';
+import ProgressCard from '../components/ProgressCard';
+import BottomNavBar from '../components/BottomNavBar';
 
-type DashboardScreenNavigationProp = StackNavigationProp<AgentStackParamList, 'Dashboard'>;
-
-interface Props {
-  navigation: DashboardScreenNavigationProp;
-}
-
-const DashboardScreen: React.FC<Props> = ({ navigation }) => {
-  const { config, isLoading, setLoading, healthStatus, setHealthStatus, agent, setAgent } = useAgent();
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastHealthCheck, setLastHealthCheck] = useState<Date | null>(null);
+const DashboardScreen: React.FC = () => {
+  const { agent, setAgent, isLoading, setLoading, config } = useAgent();
+  const navigation = useNavigation<StackNavigationProp<AgentStackParamList>>();
+  const [dashboard, setDashboard] = useState<any | null>(null);
 
   useEffect(() => {
-    performInitialChecks();
-  }, []);
-
-  const performInitialChecks = async () => {
-    await Promise.all([
-      checkSystemHealth(),
-      loadAgentInfo()
-    ]);
-  };
-
-  const checkSystemHealth = async () => {
-    try {
-      setHealthStatus('checking');
-      const response = await healthService.checkHealth();
-      
-      if (response.success && response.data) {
-        setHealthStatus(response.data.status === 'healthy' ? 'healthy' : 'unhealthy');
-        setLastHealthCheck(new Date());
-      } else {
-        setHealthStatus('unhealthy');
-      }
-    } catch (error) {
-      console.error('Health Check Error:', error);
-      setHealthStatus('unhealthy');
-    }
-  };
-
-  const loadAgentInfo = async () => {
-    try {
+    const fetchData = async () => {
       setLoading(true);
-      const response = await agentService.getCurrentAgent();
-      
-      if (response.success && response.data) {
-        setAgent(response.data);
+      try {
+        const [agentResp, dashResp] = await Promise.all([
+          agentService.getCurrentAgent(),
+          agentService.getAgentDashboard(),
+        ]);
+        const agentData = (agentResp as any)?.data || agentResp;
+        const dashData = (dashResp as any)?.data || dashResp;
+        setAgent(agentData);
+        setDashboard(dashData);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Load Agent Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await performInitialChecks();
-    setRefreshing(false);
-  };
+    fetchData();
+  }, [setAgent, setLoading]);
 
-  const handleHealthCheckPress = () => {
-    navigation.navigate('HealthCheck');
-  };
-
-  const handleSettingsPress = () => {
-    navigation.navigate('Settings');
-  };
-
-  const handleQuickHealthCheck = async () => {
-    await checkSystemHealth();
-    Alert.alert(
-      'Health Check Complete',
-      `System status: ${healthStatus === 'healthy' ? 'All systems operational' : 'Issues detected'}`
-    );
-  };
-
-  const getHealthStatusColor = () => {
-    switch (healthStatus) {
-      case 'healthy': return '#4CAF50';
-      case 'unhealthy': return '#F44336';
-      case 'checking': return '#FF9800';
-      default: return '#9E9E9E';
-    }
-  };
-
-  const getHealthStatusText = () => {
-    switch (healthStatus) {
-      case 'healthy': return 'System Healthy';
-      case 'unhealthy': return 'Issues Detected';
-      case 'checking': return 'Checking...';
-      default: return 'Status Unknown';
-    }
-  };
+  const completed = Number((dashboard as any)?.completedOrders ?? (agent as any)?.completedOrders ?? 0);
+  const pending = Number((dashboard as any)?.pendingOrders ?? 0);
+  const total = Math.max(1, completed + pending);
+  const progressPct = Math.round((completed / total) * 100);
+  const displayName = (agent as any)?.user?.name ?? (agent as any)?.name ?? 'Agent';
+  const ratingVal = (agent as any)?.rating;
+  const ratingDisplay = typeof ratingVal === 'number' ? Number(ratingVal).toFixed(1) : (ratingVal ?? '—');
 
   return (
-    <Screen style={styles.container}>
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text variant="h1" style={styles.title}>
-            Agent Dashboard
-          </Text>
-          <Text variant="body" style={styles.subtitle}>
-            Icon Computer System Monitor
-          </Text>
-        </View>
+    <Screen backgroundColor="#FAF8F2" style={styles.container}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.card}>
+          <AdminHeader welcomeName={displayName} />
 
-        <View style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <Text variant="h3">System Status</Text>
-            <View style={[styles.statusIndicator, { backgroundColor: getHealthStatusColor() }]}>
-              <Text variant="caption" style={styles.statusText}>
-                {getHealthStatusText()}
-              </Text>
+          {isLoading ? (
+            <View style={styles.loader}>
+              <ActivityIndicator size="large" color="#2E2E2E" />
+              <Text variant="caption" style={styles.loaderText}>Loading dashboard...</Text>
             </View>
-          </View>
-          
-          {lastHealthCheck && (
-            <Text variant="caption" style={styles.lastCheck}>
-              Last checked: {lastHealthCheck.toLocaleTimeString()}
-            </Text>
+          ) : (
+            <View >
+              {/* KPI column */}
+              <View style={styles.kpiStack}>
+                <StatCard icon="checkbox-outline" value={completed} label="Completed Orders" variant="green" />
+                <StatCard icon="time-outline" value={pending} label="Pending Orders" variant="orange" />
+                <StatCard icon="star-outline" value={ratingDisplay} label="Rating" variant="purple" />
+              </View>
+              <View style={styles.kpiRow}>
+                  <Button title="Accept Request" variant="primary" size="small" onPress={() => navigation.navigate('Requests')} />
+            </View>
+            </View>
           )}
-          
-          <Button
-            title="Quick Health Check"
-            onPress={handleQuickHealthCheck}
-            variant="outline"
-            size="medium"
-            style={styles.quickCheckButton}
-          />
-        </View>
-
-        {agent && (
-          <View style={styles.agentCard}>
-            <Text variant="h3" style={styles.cardTitle}>
-              Agent Information
-            </Text>
-            <View style={styles.agentInfo}>
-              <Text variant="body" style={styles.agentName}>
-                {agent.name}
-              </Text>
-              <Text variant="caption" style={styles.agentId}>
-                ID: {agent.id}
-              </Text>
-              <Text variant="caption" style={styles.agentStatus}>
-                Status: {agent.isActive ? 'Active' : 'Inactive'}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.actionsSection}>
-          <Button
-            title="Detailed Health Check"
-            onPress={handleHealthCheckPress}
-            variant="primary"
-            size="large"
-            style={styles.actionButton}
-          />
-          
-          <Button
-            title="Settings"
-            onPress={handleSettingsPress}
-            variant="secondary"
-            size="large"
-            style={styles.actionButton}
-          />
-        </View>
-
-        <View style={styles.footer}>
-          <Text variant="caption" color="#666">
-            {config.mockMode ? 'Running in Mock Mode' : 'Connected to Live API'}
-          </Text>
-          <Text variant="caption" color="#666">
-            Environment: {config.environment}
-          </Text>
         </View>
       </ScrollView>
+
+      {/* Bottom nav */}
+      <View style={styles.bottomNav}>
+        <BottomNavBar
+          onHome={() => navigation.navigate('Dashboard')}
+          onSocial={() => navigation.navigate('Requests')}
+          onProfile={() => navigation.navigate('Profile')}
+        />
+      </View>
     </Screen>
   );
 };
@@ -195,83 +88,62 @@ const DashboardScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    paddingTop: 24,
+    paddingHorizontal: 16,
+    paddingBottom: 56,
   },
-  header: {
+  card: {
     backgroundColor: '#fff',
-    padding: 20,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  title: {
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  subtitle: {
-    textAlign: 'center',
-    color: '#666',
-  },
-  statusCard: {
-    backgroundColor: '#fff',
-    margin: 15,
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
+    paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  statusHeader: {
+  loader: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loaderText: {
+    color: '#666',
+    marginTop: 8,
+  },
+  kpiRow: {
+ 
+   alignItems: 'center',
+  },
+  kpiCol: {
+    flex: 1,
+  },
+  pointsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#EEF3FB',
+    marginBottom: 12,
+  },
+  pointsTitle: {
+    marginBottom: 8,
+    color: '#2E2E2E',
+  },
+  actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    marginTop: 8,
+    gap: 8,
   },
-  statusIndicator: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  bottomNav: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  statusText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  lastCheck: {
-    color: '#666',
-    marginBottom: 15,
-  },
-  quickCheckButton: {
-    marginTop: 10,
-  },
-  agentCard: {
-    backgroundColor: '#fff',
-    margin: 15,
-    borderRadius: 12,
-    padding: 20,
-  },
-  cardTitle: {
-    marginBottom: 15,
-  },
-  agentInfo: {
-    gap: 5,
-  },
-  agentName: {
-    fontWeight: '600',
-  },
-  agentId: {
-    color: '#666',
-  },
-  agentStatus: {
-    color: '#666',
-  },
-  actionsSection: {
-    margin: 15,
-    gap: 10,
-  },
-  actionButton: {
-    marginVertical: 5,
-  },
-  footer: {
-    alignItems: 'center',
-    padding: 20,
-    marginTop: 20,
+  kpiStack: {
+    gap: 8,
+    marginBottom: 12,
   },
 });
 

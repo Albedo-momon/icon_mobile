@@ -4,9 +4,11 @@ import { AgentStackParamList } from '@icon/config';
 
 // Import screens
 import DashboardScreen from '../screens/DashboardScreen';
-import HealthCheckScreen from '../screens/HealthCheckScreen';
-
-import SettingsScreen from '../screens/SettingsScreen';
+import RequestsScreen from '../screens/RequestsScreen';
+import ServiceFlowScreen from '../screens/ServiceFlowScreen';
+import TimelineScreen from '../screens/TimelineScreen';
+import RequestDetailScreen from '../screens/RequestDetailScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createStackNavigator<AgentStackParamList>();
 
@@ -15,10 +17,11 @@ export const AgentNavigator: React.FC = () => {
     <Stack.Navigator
       initialRouteName="Dashboard"
       screenOptions={{
+        headerShown: false,
         headerStyle: {
-          backgroundColor: '#FF6B35',
+          backgroundColor: '#FAF8F2',
         },
-        headerTintColor: '#fff',
+        headerTintColor: '#2E2E2E',
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -29,15 +32,31 @@ export const AgentNavigator: React.FC = () => {
         component={DashboardScreen} 
         options={{ title: 'Agent Dashboard' }}
       />
+
       <Stack.Screen 
-        name="HealthCheck" 
-        component={HealthCheckScreen} 
-        options={{ title: 'Health Check' }}
+        name="Requests" 
+        component={RequestsScreen} 
+        options={{ title: 'Agent Requests' }}
       />
       <Stack.Screen 
-        name="Settings" 
-        component={SettingsScreen} 
-        options={{ title: 'Settings' }}
+        name="RequestDetail" 
+        component={RequestDetailScreen} 
+        options={{ title: 'Request Details' }}
+      />
+      <Stack.Screen 
+        name="ServiceFlow" 
+        component={ServiceFlowScreen} 
+        options={{ title: 'Service Flow' }}
+      />
+      <Stack.Screen 
+        name="Timeline" 
+        component={TimelineScreen} 
+        options={{ title: 'Timeline' }}
+      />
+      <Stack.Screen 
+        name="Profile" 
+        component={ProfileScreen} 
+        options={{ title: 'Profile' }}
       />
     </Stack.Navigator>
   );

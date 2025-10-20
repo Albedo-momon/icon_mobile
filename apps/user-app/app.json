@@ -2,7 +2,7 @@
   "expo": {
     "name": "user-app",
     "slug": "user-app",
-    "scheme": "com.company.userapp",
+    "scheme": "com.icon.userapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,7 +22,7 @@
     "android": {
       "minSdkVersion": 26,
       "jsEngine": "hermes",
-      "package": "com.company.userapp",
+      "package": "com.icon.userapp",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

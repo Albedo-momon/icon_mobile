@@ -79,9 +79,9 @@ android {
     buildToolsVersion = rootProject.ext.buildToolsVersion
     compileSdk = rootProject.ext.compileSdkVersion
 
-    namespace = 'com.company.userapp'
+    namespace = 'com.icon.userapp'
     defaultConfig {
-        applicationId = 'com.company.userapp'
+        applicationId = 'com.icon.userapp'
         minSdk = rootProject.ext.minSdkVersion
         targetSdk = rootProject.ext.targetSdkVersion
         versionCode = 1

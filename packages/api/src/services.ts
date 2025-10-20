@@ -283,15 +283,16 @@ export const agentService = {
         success: true,
         data: {
           id: 'agent-001',
-          name: 'John Doe',
-          email: 'john.doe@example.com',
-          phone: '+1234567890',
+          name: 'Admin',
+          email: 'happy@adminuiux.com',
+          phone: '+91 9856225A588',
           status: 'active',
           joinDate: '2024-01-15',
           totalSales: 15420.50,
           commission: 2313.08,
           rating: 4.8,
           completedOrders: 142,
+          avatarUrl: 'https://i.pravatar.cc/150?img=47',
         },
       };
     }

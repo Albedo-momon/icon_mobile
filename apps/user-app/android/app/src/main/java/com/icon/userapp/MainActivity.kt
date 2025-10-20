@@ -1,4 +1,4 @@
-package com.company.userapp
+package com.icon.userapp
 
 import android.os.Build
 import android.os.Bundle

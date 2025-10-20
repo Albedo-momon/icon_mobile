@@ -1,0 +1,522 @@
+﻿In-House (agent visits user’s home/office)
+In-Shop (user comes to shop for repair/diagnosis)
+PC Build (special sub-flow of In-Shop)
+🌐
+ Theoretical Explanation of the Three Flows
+1. In-House Flow (Agent goes to user’s home/office)
+Booking options
+: “At My Place” or “On-Site” (better copy than “IN HOUSE”).
+User app lifecycle
+:
+Request Raised
+Searching for agent
+Request sent → shows agent name once assigned
+Waiting for agent to approve
+Agent accepted
+ETA confirmed (agent provides ETA)
+Diagnosis Pending (user sees “Agent is on the way”)
+Diagnosis Started (agent presses start)
+Diagnosis Completed (agent logs findings + expected time)
+Repair 
+In
+ Progress
+Completed or Cancelled
+Agent app lifecycle
+:
+Gets request → Accept/Reject
+Provides ETA (after accept)
+Diagnosis Started → Diagnosis Completed (choose predefined issues or enter custom)
+Enter estimated resolution time
+Repair 
+In
+ Progress → mark as Completed
+Admin dashboard view
+:
+Sees full audit of request → accepted, ETA, diagnosis, progress, completion.
+Can override status (force cancel or reassign).
+2. In-Shop Flow (User comes to the shop for repair/diagnosis)
+Booking options
+: “At the Shop” or “Walk-In”.
+User app lifecycle
+:
+Request Raised
+Searching for agent
+Request sent → shows agent name once assigned
+Waiting for agent to approve
+Agent accepted
+Diagnosis Started (no “Reached” step, since user is already in shop)
+Diagnosis Completed (agent selects predefined issue or enters custom + estimated time)
+Repair 
+In
+ Progress
+Completed or Cancelled
+Agent app lifecycle
+:
+Gets request → Accept/Reject
+Immediately starts Diagnosis
+Logs findings, selects estimated time
+Moves to Repair 
+In
+ Progress
+Completes when done
+Admin dashboard view
+:
+Sees “Walk-In” requests separately
+Same tracking as In-House minus ETA/Reaching
+3. PC Build Flow (Special flow under In-Shop)
+Booking option
+: “Custom PC Build”
+User app lifecycle
+:
+Request Raised
+Searching for agent
+Request sent → agent assigned
+Waiting for agent to approve
+Agent accepted
+Build 
+In
+ Progress
+Build Complete → Software Installation 
+In
+ Progress
+Installation Done → Testing & QA
+Testing Done → Completed
+Agent app lifecycle
+:
+Accept/Reject job
+Enter expected build duration
+Build 
+In
+ Progress
+When assembly finished → press 
+Build Done
+Software Installation 
+In
+ Progress
+ → mark 
+Installation Done
+Testing & QA
+ → mark 
+Testing Done
+Finally
+ → 
+Completed
+Admin dashboard view
+:
+Sees each build phase clearly (Build / Installation / QA).
+Can step in if build stalls.
+Useful for metrics (average build time, step breakdown).
+🔄
+ Flow Diagrams
+In-House Flow
+User side
+Request Raised → Searching → Request Sent (Agent: X)
+→ Waiting for agent approval → Agent Accepted
+→ ETA Confirmed → Diagnosis Pending
+→ Diagnosis Started → Diagnosis Completed
+→ Repair 
+In
+ Progress → Completed / Cancelled
+Agent side
+Offer → Accept/Reject → Provide ETA
+→ Diagnosis Started → Diagnosis Completed (enter issues + time)
+→ Repair 
+In
+ Progress → Completed / Cancelled
+Admin side
+Tracks full flow; can override/cancel at any step.
+In-Shop Flow
+User side
+Request Raised → Searching → Request Sent (Agent: X)
+→ Waiting for agent approval → Agent Accepted
+→ Diagnosis Started → Diagnosis Completed
+→ Repair 
+In
+ Progress → Completed / Cancelled
+Agent side
+Offer → Accept/Reject
+→ Diagnosis Started → Diagnosis Completed (enter issues + time)
+→ Repair 
+In
+ Progress → Completed / Cancelled
+Admin side
+Same tracking, no ETA/reached step.
+PC Build Flow
+User side
+Request Raised → Searching → Request Sent (Agent: X)
+→ Waiting for agent approval → Agent Accepted
+→ Build 
+In
+ Progress → Build Done
+→ Software Installation 
+In
+ Progress → Installation Done
+→ Testing & QA → Testing Done
+→ Completed
+Agent side
+Offer → Accept/Reject
+→ Enter estimated build time
+→ Build 
+In
+ Progress → Build Done
+→ Software Installation 
+In
+ Progress → Installation Done
+→ Testing & QA → Testing Done
+→ Completed
+Admin side
+Tracks multi-step build process
+Can view progress at each stage
+Admin View (Landing Page)
+Dashboard Home (KPIs + quick filters)
+Requests Module (tables & detail views)
+Agents Module
+Users Module
+CMS Module
+ (already done: banners/offers/laptops)
+Notifications/Alerts
+Global Controls (header, sidebar)
+This way you get a clear mental picture of 
+what screens & buttons the admin will see
+.
+1) Dashboard Home (Landing Page)
+Top KPI Cards
+Open Requests (all pending/accepted/in-progress across flows)
+Closed Requests Today
+Total Revenue (if applicable)
+Cancelled Requests (by user/admin/agent)
+Total Agents | Active Agents
+Total Users
+Customer Satisfaction (
+avg
+ rating last 30 days)
+Active Offers / Pending Offers (from CMS)
+Charts
+Requests over time (line chart by day/week)
+Request types split (pie: In-House, In-Shop, PC Build)
+Agent utilization (bar: free vs busy agents)
+Quick Filter Panel
+Dropdown: Booking Type (All / In-House / In-Shop / PC Build)
+Status chips: Pending, Accepted, In Progress, Completed, Cancelled
+2) Requests Module
+Requests List (core table view)
+Columns:
+Booking ID
+Type (In-House / In-Shop / PC Build)
+Status (chip with 
+color
+)
+User (name/email)
+Agent (name/email or “Unassigned”)
+Created At
+Actions (View, Reassign, Cancel)
+Filters:
+Type (multi-select)
+Status (multi-select)
+Date range
+Agent/User search
+Actions from list view
+:
+View request detail
+Reassign to another agent (opens modal with available agents)
+Force Cancel (with reason)
+Request Detail Screen (different per flow)
+Header
+: Booking ID, Status chip, 
+CreatedAt
+, Type
+Tabs
+: Overview | Timeline | Notes | Feedback
+Overview Tab
+User info (profile card)
+Agent info (card with status: Free/Busy)
+Job details (address, 
+scheduledFor
+, service type, notes)
+Timeline Tab
+Visual flow of status → timestamps:
+In-House: Raised → Agent Accepted → ETA Confirmed → Diagnosis → Repair → Complete
+In-Shop: Raised → Accepted → Diagnosis → Repair → Complete
+PC Build: Raised → Accepted → Build → Install → QA → Complete
+Each step shows timestamp, actor (agent/admin/user), notes
+Notes Tab
+Admin/internal comments
+Visible only to admins (not to agents/users)
+Feedback Tab
+User feedback (rating + comment)
+Metrics: aggregated ratings for this agent
+Buttons on detail screen
+:
+Reassign Agent
+ (modal → pick agent)
+Cancel Request
+ (dropdown: cancelled by admin)
+Change Status
+ (manual override, admin-only)
+3) Agents Module
+Agents List
+Columns: Name, Email, Phone, Status (Active/Inactive), Onboarding Status, Operational Status (Free/Busy), Jobs Done, 
+RatingAvg
+Filters: Status, Service Tags, Free/Busy
+Actions: Edit, Deactivate/Activate, Delete
+Agent Detail
+Profile (contact info, avatar, tags)
+Onboarding status (pending/completed, toggleable by admin)
+Job history (list of requests handled, feedback, ratings)
+Status toggle (Active/Inactive)
+Delete agent (revokes access + deletes avatar)
+4) Users Module
+Users List
+Columns: Name, Email, Phone, Total Requests, Feedback Given
+Filters: Active/Inactive, Date joined
+Actions: View, Block/Unblock
+User Detail
+Profile info
+Job history (all bookings by this user)
+Feedback they’ve submitted
+Actions: Block user, Reset password (if native auth)
+5) CMS Module
+(Already implemented: Hero Banners, Special Offers, Laptop Offers)
+Extendable later for FAQs, Diagnostics Templates (agent picks from these during Diagnosis).
+6) Notifications/Alerts
+Notifications Panel (right side drawer)
+Real-time alerts:
+“New request created”
+“Agent accepted request”
+“PC Build entered Testing phase”
+“Agent cancelled job”
+Filters: By type (All / Requests / Agents / System)
+Mark as read/unread
+Admin Broadcasts
+Ability to send message to: All Agents / Specific Agent / All Users
+7) Global Controls (Sidebar/
+Topbar
+)
+Sidebar Navigation
+Dashboard
+Requests
+Agents
+Users
+CMS
+Notifications
+Settings
+Topbar
+Search bar (global search: by 
+bookingId
+, user, agent)
+Notification bell (live updates)
+Profile menu (Admin account settings, Logout)
+ Simple
+ Example Admin Flow (Step-by-Step)
+Admin opens Dashboard Home
+Sees 12 open requests, 5 completed today, 3 cancelled.
+Notices 2 PC Builds in progress.
+Clicks “Requests” → Table
+Filters: Type = In-House, Status = Pending.
+Sees Booking #12345 waiting for agent.
+Opens Request Detail
+Timeline shows: Raised → Searching → Sent to Agent.
+Admin clicks 
+Reassign Agent
+ → picks free agent.
+Agent accepts
+ → Admin sees status jump to ACCEPTED.
+Later
+ timeline shows: Diagnosis Completed → Repair 
+In
+ Progress.
+Admin can monitor duration and cancel if needed.
+Once Completed
+ → Admin sees user’s 5
+★
+ rating + feedback.
+Admin Flow Examples
+1. New Request (In-House)
+Scenario:
+User books an agent → “At My Place (On-Site)”
+Admin sees (Dashboard):
+New Request Alert: “Booking #1234 created (In-House)”
+Status = 
+Pending
+Timeline: 
+Request Raised → Searching → Request Sent (Agent: X) → Waiting for agent approval
+Admin actions available:
+Reassign request to another available agent
+Cancel request (Cancelled by Admin, reason logged)
+Do nothing → wait for agent to accept
+2. Agent Accepts (In-House)
+Scenario:
+Agent accepts the job, enters ETA
+Admin sees (Requests Detail):
+Timeline: 
+Agent Accepted → ETA Confirmed
+Agent card shows 
+Busy
+Status chip turns 
+ACCEPTED
+Admin actions available:
+Override ETA (set manually if needed)
+Cancel request (admin override)
+Add internal note for tracking
+3. Diagnosis Flow (In-House)
+Scenario:
+Agent reaches user’s place → Diagnosis Pending → Diagnosis Started
+Admin sees:
+Timeline: 
+Diagnosis Pending → Diagnosis Started
+Agent logs diagnosis: “Motherboard issue”
+Admin sees diagnosis + expected resolution time (e.g., “2 hours”)
+Admin actions:
+Monitor progress
+If delay: contact agent or user
+Option to cancel job at this stage
+4. Repair Flow (In-House)
+Scenario:
+Diagnosis complete → Repair 
+In
+ Progress
+Admin sees:
+Timeline: 
+Diagnosis Completed → Repair 
+In
+ Progress
+Agent updates: “Replaced RAM, testing now”
+Admin actions:
+Live monitoring on dashboard (job count increments “In Progress”)
+Can force Complete or Cancel if needed
+5. Completion (In-House)
+Scenario:
+Agent marks Complete
+Admin sees:
+Timeline: 
+Repair 
+In
+ Progress → Completed
+User feedback received: 
+⭐⭐⭐⭐
+ + comment
+Agent stats updated: 
+jobsDone+1
+, 
+ratingAvg
+ recalculated
+6. In-Shop Repair
+Scenario:
+User selects “At Shop / Walk-In”
+Admin sees:
+Request comes in: 
+Request Raised → Searching → Sent → Waiting
+Once accepted: 
+Diagnosis Started
+ (no Reached/ETA)
+Admin actions:
+View ongoing diagnosis list (table filter by In-Shop)
+See estimated repair time entered by agent
+Special case:
+If agent diagnoses uncommon issue → enters manual description
+Admin sees manual notes in real-time
+Completion:
+Same as In-House (Diagnosis → Repair 
+In
+ Progress → Completed/Cancelled)
+7. PC Build Flow
+Scenario:
+User selects “Custom PC Build”
+Admin sees:
+Request timeline:
+Request Raised → Agent Accepted → Build 
+In
+ Progress
+Stages shown in Admin Timeline:
+Build 
+In
+ Progress
+Build Done
+Software Installation 
+In
+ Progress
+Installation Done
+Testing & QA
+Testing Done
+Completed
+Admin actions:
+At each stage, admin can monitor timestamps
+If build is taking too long → intervene (e.g., “Reassign build to another agent”)
+If job cancelled → record reason
+8. Cancelled Requests
+Scenarios:
+Cancelled by User (before acceptance)
+Cancelled by Agent (reject or during work)
+Cancelled by Admin (forced cancel anytime)
+Admin sees:
+Status chip = red “Cancelled (by User/Admin/Agent)”
+Timeline ends with Cancel event + reason
+Metrics update: 
+Cancelled count+1
+9. Reassign Flow
+Scenario:
+Request stuck → Admin reassigns to new agent
+Admin sees:
+Timeline: 
+Reassigned to Agent Y
+Old agent status freed → new agent receives notification
+New timeline branch starts: 
+Request Sent (Agent Y)
+Admin actions:
+Add note: “Reassigned because previous agent didn’t respond”
+10. Multi-Day Session (In-House / In-Shop)
+Scenario:
+Diagnosis shows repair requires 2 days
+Admin sees:
+Timeline: 
+Diagnosis Completed → Scheduled Next Visit (Tomorrow 10 AM)
+Agent logs 
+nextVisitAt
+On day 2: new session starts 
+Start Visit → End Visit → Completed
+Admin actions:
+View 
+JobSessions
+ tab
+Monitor multiple visits per job
+11. Notifications (Admin)
+Scenarios:
+Real-time alerts
+:
+“New booking created”
+“Agent accepted booking #1234”
+“Diagnosis completed for booking #5678”
+“PC Build entered Testing phase”
+“Job #4321 cancelled by user”
+Admin actions:
+Click notification → opens Request Detail
+Mark as read/unread
+Archive for record
+12. Feedback Review
+Scenario:
+User leaves feedback after job completion
+Admin sees:
+Timeline update: 
+Feedback submitted
+Feedback tab: 
+⭐⭐⭐⭐
+, “Agent was quick and professional”
+Aggregates update agent profile (
+ratingAvg
+, 
+jobsDone
+)
+Admin actions:
+Export feedback report
+See satisfaction metrics on dashboard
+📊
+ Quick Summary per Flow
+In-House
+Request → Agent Accepts → ETA → Diagnosis → Repair → Completed
+Admin sees full trail + can override any step
+In-Shop
+Request → Agent Accepts → Diagnosis → Repair → Completed
+Admin sees diagnosis details but no ETA/reached
+PC Build
+Request → Agent Accepts → Build → Install → QA → Completed
+Admin sees granular stages, useful for tracking build quality
