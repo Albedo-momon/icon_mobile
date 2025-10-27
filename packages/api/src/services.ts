@@ -8,6 +8,7 @@ import {
   LoginForm,
   RegisterForm,
   NotificationItem,
+  TimelineEvent,
 } from '@icon/config';
 import {
   mockHealthResponse,
@@ -38,19 +39,19 @@ export const cmsService = {
       await mockDelay();
       try {
         // Fetch banner images from Picsum and product data with images from DummyJSON
-        const [picsumList, dummyProducts, dummyLaptopProducts] = await Promise.all([
-          fetch('https://picsum.photos/v2/list?limit=5').then((r) => r.json()),
+        const [dummyProductsRes, dummyLaptopProductsRes] = await Promise.all([
           fetch('https://dummyjson.com/products?limit=30').then((r) => r.json()),
           fetch('https://dummyjson.com/products/category/laptops?limit=10').then((r) => r.json()),
         ]);
 
         const nowIso = new Date().toISOString();
 
-        const banners = (picsumList || []).slice(0, 3).map((b: any, idx: number) => ({
-          id: String(b.id ?? idx + 1),
+        const bannerProducts = (dummyProductsRes?.products || []).slice(0, 3);
+        const banners = bannerProducts.map((p: any, idx: number) => ({
+          id: `banner-${p.id}`,
           title: ['SALE', 'New Arrivals', 'Top Deals'][idx] ?? `Banner ${idx + 1}`,
           description: undefined,
-          imageUrl: `https://picsum.photos/id/${b.id}/${1200}/${600}`,
+          imageUrl: p.thumbnail || (Array.isArray(p.images) && p.images[0]) || `https://i.dummyjson.com/data/products/${p.id}/1.jpg`,
           linkUrl: undefined,
           isActive: true,
           startDate: undefined,
@@ -59,7 +60,7 @@ export const cmsService = {
           updatedAt: nowIso,
         }));
 
-        const productsMain = (dummyProducts?.products || []).map((p: any) => ({
+        const productsMain = (dummyProductsRes?.products || []).map((p: any) => ({
           id: String(p.id),
           name: p.title,
           description: p.description,
@@ -71,7 +72,7 @@ export const cmsService = {
           updatedAt: nowIso,
         }));
 
-        const productsLaptops = (dummyLaptopProducts?.products || []).map((p: any) => ({
+        const productsLaptops = (dummyLaptopProductsRes?.products || []).map((p: any) => ({
           id: String(p.id),
           name: p.title,
           description: p.description,
@@ -90,7 +91,7 @@ export const cmsService = {
         });
         const products = Object.values(productsMap);
 
-        const topDiscounts = ([...(dummyProducts?.products || []), ...(dummyLaptopProducts?.products || [])])
+        const topDiscounts = ([...(dummyProductsRes?.products || []), ...(dummyLaptopProductsRes?.products || [])])
           .slice()
           .sort((a: any, b: any) => (b.discountPercentage ?? 0) - (a.discountPercentage ?? 0))
           .slice(0, 3);
@@ -124,8 +125,55 @@ export const cmsService = {
       }
     }
 
-    // Real API mode
-    return apiClient.get<CMSResponse>(buildApiUrl('cms'));
+    // Real API mode: transform backend /cms response into CMSResponse shape
+    const raw = await apiClient.get<any>(buildApiUrl('cms'));
+
+    const nowIso = new Date().toISOString();
+
+    const banners: CMSResponse['banners'] = (raw?.banners || []).map((b: any) => ({
+      id: String(b.id ?? b.id),
+      title: b.title ?? 'Banner',
+      description: b.subtitle ?? undefined,
+      imageUrl: b.imageUrl,
+      linkUrl: b.ctaLink ?? undefined,
+      isActive: (b.status ?? 'ACTIVE') === 'ACTIVE',
+      startDate: b.validFrom ? new Date(b.validFrom).toISOString() : undefined,
+      endDate: b.validTo ? new Date(b.validTo).toISOString() : undefined,
+      createdAt: b.createdAt ?? nowIso,
+      updatedAt: b.updatedAt ?? nowIso,
+    }));
+
+    const offers: CMSResponse['offers'] = (raw?.offers || []).map((o: any) => ({
+      id: String(o.id ?? o.id),
+      title: o.title ?? `${o.productName ?? 'Offer'} — ${Number(o.discountPercent ?? 0)}% OFF`,
+      description: o.description ?? (o.productName ? `Save ${Number(o.discountPercent ?? 0)}% on ${o.productName}` : undefined),
+      discountPercentage: Number(o.discountPercent ?? 0),
+      isActive: (o.status ?? 'ACTIVE') === 'ACTIVE',
+      startDate: o.validFrom ? new Date(o.validFrom).toISOString() : undefined,
+      endDate: o.validTo ? new Date(o.validTo).toISOString() : undefined,
+      createdAt: o.createdAt ?? nowIso,
+      updatedAt: o.updatedAt ?? nowIso,
+    }));
+
+    const products: CMSResponse['products'] = (raw?.laptops || []).map((p: any) => ({
+      id: String(p.id ?? p.id),
+      name: p.productName ?? p.title ?? 'Laptop',
+      description: p.description ?? '',
+      price: Number(p.discounted ?? p.price ?? 0),
+      imageUrl: p.imageUrl,
+      category: 'laptops',
+      isActive: (p.status ?? 'ACTIVE') === 'ACTIVE',
+      createdAt: p.createdAt ?? nowIso,
+      updatedAt: p.updatedAt ?? nowIso,
+    }));
+
+    return {
+      title: 'ICON Home',
+      content: 'CMS-driven content from backend',
+      banners,
+      offers,
+      products,
+    };
   },
 
   async getHomeContent(): Promise<ApiResponse<any>> {
@@ -343,6 +391,40 @@ export const agentService = {
   },
 };
 
+// Timeline service (shared between apps)
+const mockTimelineStore: Record<string, TimelineEvent[]> = {};
+
+export const timelineService = {
+  async getEvents(requestId: string): Promise<ApiResponse<TimelineEvent[]>> {
+    if (config.mockMode) {
+      await mockDelay();
+      const events = mockTimelineStore[requestId] || [];
+      return { success: true, data: events };
+    }
+    return apiClient.get<ApiResponse<TimelineEvent[]>>(buildApiUrl('requests') + `/${encodeURIComponent(requestId)}/timeline`);
+  },
+
+  async addEvent(requestId: string, event: TimelineEvent): Promise<ApiResponse<TimelineEvent>> {
+    if (config.mockMode) {
+      await mockDelay();
+      const list = mockTimelineStore[requestId] || [];
+      const evt = { ...event };
+      mockTimelineStore[requestId] = [...list, evt];
+      return { success: true, data: evt };
+    }
+    return apiClient.post<ApiResponse<TimelineEvent>>(buildApiUrl('requests') + `/${encodeURIComponent(requestId)}/timeline`, event);
+  },
+
+  async clear(requestId: string): Promise<ApiResponse> {
+    if (config.mockMode) {
+      await mockDelay();
+      delete mockTimelineStore[requestId];
+      return { success: true };
+    }
+    return apiClient.post<ApiResponse>(buildApiUrl('requests') + `/${encodeURIComponent(requestId)}/timeline/clear`);
+  },
+};
+
 // Export all services
 export const api = {
   health: healthService,
@@ -350,6 +432,7 @@ export const api = {
   auth: authService,
   user: userService,
   agent: agentService,
+  timeline: timelineService,
 };
 
 export default api;

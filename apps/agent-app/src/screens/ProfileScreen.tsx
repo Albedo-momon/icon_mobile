@@ -17,7 +17,7 @@ interface Props {
 }
 
 const ProfileScreen: React.FC<Props> = ({ navigation }) => {
-  const { agent, config, setAgent } = useAgent();
+  const { agent, config, setAgent, logout, onboardingComplete, setOnboardingComplete } = useAgent();
   // Helper utils for display
   const formatDate = (d?: string) => {
     if (!d) return '—';
@@ -42,16 +42,31 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(agent?.user?.name || '');
+  // Inline editable fields
+  const [mobile, setMobile] = useState<string>((agent as any)?.user?.mobile || (agent as any)?.phone || '');
+  const [experience, setExperience] = useState<string>(
+    typeof (agent as any)?.experienceYears === 'number' ? String((agent as any)?.experienceYears) : ''
+  );
+  const [age, setAge] = useState<string>(
+    typeof (agent as any)?.age === 'number' ? String((agent as any)?.age) : ''
+  );
+  const [skillsInput, setSkillsInput] = useState<string>(Array.isArray((agent as any)?.skills) ? (agent as any)?.skills.join(', ') : '');
   // Password state and visibility controls
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     setName(agent?.user?.name || '');
+    const mob = (agent as any)?.user?.mobile || (agent as any)?.phone || '';
+    setMobile(mob);
+    const expRaw = (agent as any)?.experienceYears;
+    setExperience(typeof expRaw === 'number' ? String(expRaw) : (expRaw ? String(expRaw) : ''));
+    const ageRaw = (agent as any)?.age;
+    setAge(typeof ageRaw === 'number' ? String(ageRaw) : (ageRaw ? String(ageRaw) : ''));
+    const skillsArrLocal: string[] = Array.isArray((agent as any)?.skills) ? (agent as any).skills : [];
+    setSkillsInput(skillsArrLocal.length ? skillsArrLocal.join(', ') : '');
   }, [agent]);
 
   const opStatusRaw = (agent as any)?.operationalStatus;
@@ -67,38 +82,66 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
 const profilePhotoUri = (agent as any)?.photoUrl || (agent as any)?.imageUrl || (agent as any)?.avatarUrl || (agent as any)?.user?.avatarUrl || null;
 
   const email = (agent as any)?.email || (agent as any)?.user?.email || '—';
-  const phone = (agent as any)?.phone || '—';
+  const mobileNumber = (agent as any)?.user?.mobile || (agent as any)?.phone || '—';
   const completedOrders = typeof (agent as any)?.completedOrders === 'number' ? (agent as any).completedOrders : 0;
   const level = Math.max(1, Math.floor(completedOrders / 50) + 1);
   const rank = Math.max(1, 5000 - completedOrders * 10);
 
-  const handleSave = () => {
-    // Persist name changes to context (email remains read-only)
-    const trimmedName = name.trim();
-    if (trimmedName.length > 0) {
-      const updatedAgent: any = {
-        ...(agent || {}),
-        name: trimmedName,
-        user: { ...((agent as any)?.user || {}), name: trimmedName },
-      };
-      setAgent(updatedAgent);
-    }
+  // Onboarding fields
+  const expVal = (agent as any)?.experienceYears;
+  const experienceDisplay = typeof expVal === 'number' ? `${expVal}` : (expVal != null ? String(expVal) : '—');
+  const ageVal = (agent as any)?.age;
+  const ageDisplay = typeof ageVal === 'number' ? `${ageVal}` : (ageVal != null ? String(ageVal) : '—');
+  const skillsArr: string[] = Array.isArray((agent as any)?.skills) ? (agent as any).skills : [];
+  const hasOnboardingData = !!(skillsArr.length > 0 && typeof expVal === 'number' && typeof ageVal === 'number' && mobileNumber !== '—');
+  const onboardingStatus = onboardingComplete && hasOnboardingData ? 'Done' : 'Pending';
 
-    // Optional password update if user provided values
-    if (newPassword || confirmPassword) {
+  const handleLogout = async () => {
+    try {
+      await logout();
+      Alert.alert('Logout', 'You have been logged out.', [
+        { text: 'OK', onPress: () => navigation.replace('Login') }
+      ]);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
+  const handleSave = () => {
+    // Persist edited fields into agent context
+    const trimmedName = name.trim();
+    const mobileTrimmed = (mobile || '').trim();
+    const expNum = parseInt((experience || '').trim(), 10);
+    const ageNum = parseInt((age || '').trim(), 10);
+    const skillsList = (skillsInput || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const updatedAgent: any = {
+      ...(agent || {}),
+      name: trimmedName || (agent as any)?.name,
+      phone: mobileTrimmed || (agent as any)?.phone,
+      age: !isNaN(ageNum) ? ageNum : (agent as any)?.age,
+      experienceYears: !isNaN(expNum) ? expNum : (agent as any)?.experienceYears,
+      skills: skillsList.length ? skillsList : ((agent as any)?.skills || []),
+      user: {
+        ...((agent as any)?.user || {}),
+        name: trimmedName || (agent as any)?.user?.name,
+        mobile: mobileTrimmed || (agent as any)?.user?.mobile,
+      },
+    };
+    setAgent(updatedAgent);
+
+    // Optional password update if user provided a new password inline
+    if (newPassword) {
       if (newPassword.length < 6) {
         Alert.alert('Validation', 'Password must be at least 6 characters');
         return;
       }
-      if (newPassword !== confirmPassword) {
-        Alert.alert('Validation', 'Password and confirmation do not match');
-        return;
-      }
       setPassword(newPassword);
       setNewPassword('');
-      setConfirmPassword('');
       setShowNewPassword(false);
-      setShowConfirmPassword(false);
     }
 
     setEditing(false);
@@ -111,20 +154,35 @@ const profilePhotoUri = (agent as any)?.photoUrl || (agent as any)?.imageUrl || 
         <TopBar
           onBackPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Dashboard'))}
           showProfile={false}
-          textColor="#000"
+          textColor="#333"
           // hide back button per request
           showBack={false}
         />
       </View>
-      <KeyboardAvoidingView style={styles.main} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.main}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 100}
+      >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.middle}>
             <View style={styles.profileCard}>
               <View style={styles.cardHeader}>
+                <View style={styles.headerLeft}>
+                  <View style={[styles.statusBadge, onboardingStatus === 'Done' ? styles.statusBadgeDone : styles.statusBadgePending]}>
+                    <Text variant="caption" style={styles.statusText}>Onboarding: {onboardingStatus}</Text>
+                  </View>
+                </View>
                 <View style={styles.headerRight}>
-                  <TouchableOpacity onPress={() => setEditing(e => !e)} style={styles.editButton} accessibilityLabel="Edit Profile">
-                    <Ionicons name="create-outline" size={18} color="#fff" />
-                  </TouchableOpacity>
+                  {editing ? (
+                    <TouchableOpacity onPress={handleSave} style={styles.editButton} accessibilityLabel="Save Profile">
+                      <Ionicons name="checkmark-outline" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={() => setEditing(true)} style={styles.editButton} accessibilityLabel="Edit Profile">
+                      <Ionicons name="create-outline" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
@@ -144,7 +202,17 @@ const profilePhotoUri = (agent as any)?.photoUrl || (agent as any)?.imageUrl || 
                 <View style={styles.infoList}>
                   <View style={styles.infoRow}>
                     <Ionicons name="people-outline" size={16} color="#3E86F5" style={styles.infoIcon} />
-                    <Text variant="body" style={[styles.infoText, styles.detailsName]}>{name || agent?.user?.name || 'Admin'}</Text>
+                    {editing ? (
+                      <TextInput
+                        style={[styles.inlineInput]}
+                        value={name}
+                        onChangeText={setName}
+                        placeholder="Name"
+                        autoCapitalize="words"
+                      />
+                    ) : (
+                      <Text variant="body" style={[styles.infoText, styles.detailsName]}>{name || agent?.user?.name || 'Admin'}</Text>
+                    )}
                   </View>
                   <View style={styles.infoRow}>
                     <Ionicons name="mail-outline" size={16} color="#3E86F5" style={styles.infoIcon} />
@@ -152,68 +220,109 @@ const profilePhotoUri = (agent as any)?.photoUrl || (agent as any)?.imageUrl || 
                   </View>
                   <View style={styles.infoRow}>
                     <Ionicons name="call-outline" size={16} color="#3E86F5" style={styles.infoIcon} />
-                    <Text variant="body" style={styles.infoText}>{phone}</Text>
+                    {editing ? (
+                      <TextInput
+                        style={styles.inlineInput}
+                        value={mobile}
+                        onChangeText={setMobile}
+                        placeholder="Mobile"
+                        keyboardType="phone-pad"
+                      />
+                    ) : (
+                      <Text variant="body" style={styles.infoText}>Mobile: {mobileNumber}</Text>
+                    )}
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Ionicons name="briefcase-outline" size={16} color="#3E86F5" style={styles.infoIcon} />
+                    {editing ? (
+                      <TextInput
+                        style={styles.inlineInput}
+                        value={experience}
+                        onChangeText={setExperience}
+                        placeholder="Experience (years)"
+                        keyboardType="numeric"
+                      />
+                    ) : (
+                      <Text variant="body" style={styles.infoText}>Experience: {experienceDisplay} years</Text>
+                    )}
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Ionicons name="calendar-outline" size={16} color="#3E86F5" style={styles.infoIcon} />
+                    {editing ? (
+                      <TextInput
+                        style={styles.inlineInput}
+                        value={age}
+                        onChangeText={setAge}
+                        placeholder="Age"
+                        keyboardType="numeric"
+                      />
+                    ) : (
+                      <Text variant="body" style={styles.infoText}>Age: {ageDisplay}</Text>
+                    )}
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Ionicons name="ribbon-outline" size={16} color="#3E86F5" style={styles.infoIcon} />
+                    {editing ? (
+                      <TextInput
+                        style={styles.inlineInput}
+                        value={skillsInput}
+                        onChangeText={setSkillsInput}
+                        placeholder="Skills (comma-separated)"
+                      />
+                    ) : (
+                      <Text variant="body" style={styles.infoText} numberOfLines={2}>Skills: {skillsArr.length ? skillsArr.join(', ') : '—'}</Text>
+                    )}
+                  </View>
+                  <View style={[styles.infoRow, { justifyContent: 'space-between' }]}> 
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <Ionicons name="lock-closed-outline" size={16} color="#3E86F5" style={styles.infoIcon} />
+                      {editing ? (
+                        <TextInput
+                          style={[styles.inlineInput, { flex: 1 }]}
+                          value={newPassword}
+                          onChangeText={setNewPassword}
+                          placeholder="New password"
+                          secureTextEntry={!showNewPassword}
+                        />
+                      ) : (
+                        <Text variant="body" style={styles.infoText}>Password: {password ? (showPassword ? password : '••••••••') : '—'}</Text>
+                      )}
+                    </View>
+                    {editing ? (
+                      <TouchableOpacity onPress={() => setShowNewPassword(s => !s)} accessibilityLabel="Toggle password visibility">
+                        <Ionicons name={showNewPassword ? 'eye-off-outline' : 'eye-outline'} size={16} color="#3E86F5" />
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity onPress={() => setShowPassword(s => !s)} accessibilityLabel="Toggle password visibility">
+                        <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={16} color="#3E86F5" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               </View>
 
+              {/* Inline edit uses the rows above; provide a Save button too */}
               {editing && (
-                <View style={styles.form}>
-                  <View style={styles.inputGroup}>
-                    <Text variant="body" style={styles.label}>Name</Text>
-                    <View style={styles.inputRow}>
-                      <Ionicons name="person-outline" size={16} color="#3E86F5" style={styles.inputIcon} />
-                      <TextInput
-                        style={[styles.input, styles.inputWithIcon]}
-                        value={name}
-                        onChangeText={setName}
-                        placeholder="Enter your name"
-                        autoCapitalize="words"
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.saveButtonContainer}>
-                    <Button title="Save" style={styles.saveButton} onPress={handleSave} />
-                  </View>
+                <View style={styles.saveButtonContainer}>
+                  <Button title="Save" style={styles.saveButton} onPress={handleSave} />
                 </View>
               )}
 
+              {/* Actions */}
+              <View style={styles.actionsList}>
+                <TouchableOpacity
+                  style={[styles.actionRow, styles.logoutRow]}
+                  onPress={handleLogout}
+                  accessibilityLabel="Logout"
+                >
+                  <Ionicons name="log-out-outline" size={18} color="#E53935" style={styles.actionIcon} />
+                  <Text variant="body" style={styles.logoutLabel}>Logout</Text>
+                </TouchableOpacity>
+              </View>
             
             </View>
 
-            <View style={styles.profileCard}>
-              <View style={styles.actionsList}>
-                <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('Profile')}>
-                  <Ionicons name="person-outline" size={18} color="#3E86F5" style={styles.actionIcon} />
-                  <Text variant="body" style={styles.actionLabel}>My Profile</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('Dashboard')}>
-                  <Ionicons name="grid-outline" size={18} color="#3E86F5" style={styles.actionIcon} />
-                  <Text variant="body" style={styles.actionLabel}>My Dashboard</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionRow} onPress={() => Alert.alert('Earning', 'Earning screen not implemented yet.') }>
-                  <Ionicons name="cash-outline" size={18} color="#3E86F5" style={styles.actionIcon} />
-                  <Text variant="body" style={styles.actionLabel}>Earning</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionRow} onPress={() => Alert.alert('Subscription', 'Upgrade flow not implemented yet.') }>
-                  <Ionicons name="pricetag-outline" size={18} color="#3E86F5" style={styles.actionIcon} />
-                  <Text variant="body" style={styles.actionLabel}>Subscription <Text variant="body" style={styles.upgradeText}>Upgrade</Text></Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionRow} onPress={() => Alert.alert('Statement', 'Statement screen not implemented yet.') }>
-                  <Ionicons name="receipt-outline" size={18} color="#3E86F5" style={styles.actionIcon} />
-                  <Text variant="body" style={styles.actionLabel}>Statement</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionRow} onPress={() => Alert.alert('Account Setting', 'Account setting screen not implemented yet.') }>
-                  <Ionicons name="settings-outline" size={18} color="#3E86F5" style={styles.actionIcon} />
-                  <Text variant="body" style={styles.actionLabel}>Account Setting</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionRow, styles.logoutRow]} onPress={() => Alert.alert('Logout', 'You have been logged out.') }>
-                  <Ionicons name="log-out-outline" size={18} color="#E53935" style={styles.actionIcon} />
-                  <Text variant="body" style={[styles.actionLabel, styles.logoutLabel]}>Logout</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            {/* Second card removed per request: consolidated into single profile card */}
 
 
           </View>
@@ -231,7 +340,7 @@ const profilePhotoUri = (agent as any)?.photoUrl || (agent as any)?.imageUrl || 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#EEF3FB',
   },
   main: { flex: 1 },
   content: {
@@ -354,10 +463,10 @@ const styles = StyleSheet.create({
     marginTop: 48,
     paddingTop: 72,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
     borderWidth: 1,
     borderColor: CARD_COLORS.border,
   },
@@ -410,7 +519,12 @@ const styles = StyleSheet.create({
   upgradeText: { color: '#34A853', fontWeight: '600' },
   logoutRow: { borderBottomWidth: 0 },
   logoutLabel: { color: '#E53935', fontWeight: '600' },
-  bottomNavContainer: { marginTop: 12 },
+  bottomNavContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -420,10 +534,35 @@ const styles = StyleSheet.create({
   cardHeaderTitle: {
     color: '#333',
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  statusBadgeDone: {
+    backgroundColor: '#2ecc71',
+  },
+  statusBadgePending: {
+    backgroundColor: '#ff9500',
+  },
+  statusText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   editButton: {
     width: 28,
@@ -473,6 +612,16 @@ const styles = StyleSheet.create({
   form: {
     gap: 12,
   },
+  inlineInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: CARD_COLORS.border,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff',
+    color: CARD_COLORS.title,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#eee',
@@ -519,10 +668,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   saveButtonContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: -16,
+    marginTop: 8,
     alignItems: 'center',
   },
 });

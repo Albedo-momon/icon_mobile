@@ -197,6 +197,14 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           <Ionicons name="people-outline" size={22} color="#333" />
           <Text variant="caption" style={styles.bottomLabel}>Agent</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.bottomItem}
+          onPress={() => { user ? handleLogout() : navigation.navigate('Login'); }}
+          accessibilityLabel={user ? 'Logout' : 'Login'}
+        >
+          <Ionicons name={user ? 'log-out-outline' : 'log-in-outline'} size={22} color="#333" />
+          <Text variant="caption" style={styles.bottomLabel}>{user ? 'Logout' : 'Login'}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Side Drawer */}
@@ -335,6 +343,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderRadius: 10,
     padding: 10,
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   productImage: {
     width: '100%',
@@ -364,6 +378,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E8E2D9',
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   categoryImage: {
     width: '100%',
@@ -378,6 +398,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderRadius: 10,
     padding: 12,
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   offerRow: {
     flexDirection: 'row',
@@ -508,6 +534,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     backgroundColor: '#1A1A1A',
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   bookAgentIcon: {
     marginRight: 14,

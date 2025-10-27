@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#EEF3FB',
   },
   header: {
     alignItems: 'center',
@@ -119,12 +119,17 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: '#e6e9ef',
+    borderRadius: 10,
     padding: 12,
     fontSize: 16,
     backgroundColor: '#fff',
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   continueButton: {
     marginTop: 8,

@@ -18,12 +18,13 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const { user, setUser, config, sessionPassword, setSessionPassword } = useApp();
   const { signOut } = useAuth();
   const { user: clerkUser } = useUser();
-  const passwordEnabled = !!clerkUser?.passwordEnabled;
+  const [isPasswordEnabled, setIsPasswordEnabled] = useState(!!clerkUser?.passwordEnabled);
 
   const [name, setName] = useState(user?.name || '');
   const [surname, setSurname] = useState('');
   const [email, setEmail] = useState(user?.email || '');
   const [mobile, setMobile] = useState('');
+  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [editing, setEditing] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -53,7 +54,12 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
     setPassword(sessionPassword || '');
     setSurname((user as any)?.surname || '');
     setMobile((user as any)?.mobile || '');
+    setAddress((user as any)?.address || '');
   }, [user, sessionPassword]);
+
+  useEffect(() => {
+    setIsPasswordEnabled(!!clerkUser?.passwordEnabled);
+  }, [clerkUser]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -90,8 +96,11 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       surname: surname.trim(),
       email: email.trim(),
       mobile: mobile.trim(),
+      address: address.trim(),
       updatedAt: new Date().toISOString(),
     });
+    // Exit edit mode and show read-only profile view
+    setEditing(false);
     Alert.alert('Saved', 'Your profile has been updated.');
   };
 
@@ -120,6 +129,30 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           <Text variant="body" style={styles.subtitle}>Please login to view your profile</Text>
           <Button title="Go to Login" onPress={() => navigation.navigate('Login')} variant="primary" size="large" style={styles.loginButton} />
         </View>
+
+        {/* Bottom Bar with icons */}
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.bottomItem} onPress={() => navigation.navigate('Home')} accessibilityLabel="Go to Home">
+            <Ionicons name="home-outline" size={22} color="#333" />
+            <Text variant="caption" style={styles.bottomLabel}>Home</Text>
+          </TouchableOpacity>
+          <View style={styles.bottomItem}>
+            <Ionicons name="person-outline" size={22} color="#007AFF" />
+            <Text variant="caption" style={styles.bottomLabel}>Profile</Text>
+          </View>
+          <TouchableOpacity style={styles.bottomItem} onPress={() => navigation.navigate('AgentHub')} accessibilityLabel="Open Agent hub">
+            <Ionicons name="people-outline" size={22} color="#333" />
+            <Text variant="caption" style={styles.bottomLabel}>Agent</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.bottomItem}
+            onPress={() => navigation.navigate('Login')}
+            accessibilityLabel="Login"
+          >
+            <Ionicons name="log-in-outline" size={22} color="#333" />
+            <Text variant="caption" style={styles.bottomLabel}>Login</Text>
+          </TouchableOpacity>
+        </View>
       </Screen>
     );
   }
@@ -135,14 +168,14 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text variant="h2" style={styles.modalTitle}>{passwordEnabled ? 'Change Password' : 'Set Password'}</Text>
+            <Text variant="h3" style={styles.modalTitle}>{isPasswordEnabled ? 'Change Password' : 'Set Password'}</Text>
 
-            {passwordEnabled && (
+            {isPasswordEnabled && (
               <View style={styles.inputGroup}>
                 <Text variant="body" style={styles.label}>Current Password</Text>
                 <View style={styles.inputRow}>
                   <TextInput
-                    style={[styles.input, styles.inputWithIcon]}
+                    style={[styles.modalInput, styles.inputWithIcon]}
                     value={cpCurrent}
                     onChangeText={setCpCurrent}
                     placeholder="Enter current password"
@@ -165,7 +198,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               <Text variant="body" style={styles.label}>New Password</Text>
               <View style={styles.inputRow}>
                 <TextInput
-                  style={[styles.input, styles.inputWithIcon]}
+                  style={[styles.modalInput, styles.inputWithIcon]}
                   value={cpNew}
                   onChangeText={setCpNew}
                   placeholder="Enter new password"
@@ -187,7 +220,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
               <Text variant="body" style={styles.label}>Confirm Password</Text>
               <View style={styles.inputRow}>
                 <TextInput
-                  style={[styles.input, styles.inputWithIcon]}
+                  style={[styles.modalInput, styles.inputWithIcon]}
                   value={cpConfirm}
                   onChangeText={setCpConfirm}
                   placeholder="Confirm new password"
@@ -206,13 +239,14 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <View style={styles.modalActions}>
-              <Button title="Cancel" variant="secondary" size="medium" onPress={() => setChangePwVisible(false)} />
+              <Button title="Cancel" variant="secondary" size="small" style={styles.modalButton} onPress={() => setChangePwVisible(false)} />
               <Button
-                title={passwordEnabled ? 'Change' : 'Set'}
+                title={isPasswordEnabled ? 'Change' : 'Set'}
                 variant="primary"
-                size="medium"
+                size="small"
+                style={styles.modalButton}
                 onPress={async () => {
-                  if (passwordEnabled && !cpCurrent.trim()) {
+                  if (isPasswordEnabled && !cpCurrent.trim()) {
                     Alert.alert('Validation', 'Please enter your current password');
                     return;
                   }
@@ -226,10 +260,20 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                   }
 
                   try {
-                    if (passwordEnabled) {
+                    if (isPasswordEnabled) {
+                      if (!clerkUser) {
+                        Alert.alert('Error', 'Account not loaded. Please try again.');
+                        return;
+                      }
                       await clerkUser?.updatePassword({ currentPassword: cpCurrent, newPassword: cpNew });
                     } else {
+                      if (!clerkUser) {
+                        Alert.alert('Error', 'Account not loaded. Please try again.');
+                        return;
+                      }
                       await clerkUser?.updatePassword({ newPassword: cpNew });
+                      // Immediately reflect password-enabled state in UI
+                      setIsPasswordEnabled(true);
                     }
                     // Update local session password display to reflect the change
                     setSessionPassword(cpNew);
@@ -241,7 +285,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                     setShowCpCurrent(false);
                     setShowCpNew(false);
                     setShowCpConfirm(false);
-                    Alert.alert('Success', passwordEnabled ? 'Password changed successfully' : 'Password set successfully');
+                    Alert.alert('Success', isPasswordEnabled ? 'Password changed successfully' : 'Password set successfully');
                   } catch (e: any) {
                     const msg = e?.errors?.[0]?.message || e?.message || 'Failed to update password';
                     Alert.alert('Error', msg);
@@ -254,7 +298,6 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       </Modal>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {/* Top bar removed per request; Hello text no longer shown, and Edit lives in the nav header */}
 
           <View style={styles.middle}>
             <View style={styles.profileCard}>
@@ -317,11 +360,18 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                   keyboardType="phone-pad"
                   placeholderTextColor="#bbb"
                 />
+                <TextInput
+                  style={[styles.input, styles.inputEditing]}
+                  placeholder="Address"
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholderTextColor="#bbb"
+                />
                 <View style={[styles.inputReadonly, styles.inputRow]}>
                   <Text variant="body" style={styles.passwordText}>
-                    {passwordEnabled ? (showPassword ? (password || '') : '********') : ''}
+                    {isPasswordEnabled ? (showPassword ? (password || '') : '********') : ''}
                   </Text>
-                  {passwordEnabled && (
+                  {isPasswordEnabled && (
                     <TouchableOpacity
                       onPress={() => setShowPassword(v => !v)}
                       style={styles.inputIcon}
@@ -331,8 +381,8 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                     </TouchableOpacity>
                   )}
                 </View>
-                <TouchableOpacity onPress={() => setChangePwVisible(true)} style={styles.changePasswordLink} accessibilityLabel={passwordEnabled ? 'Change Password' : 'Set Password'}>
-                  <Text variant="caption" style={[styles.changePasswordText, !passwordEnabled ? { color: '#007AFF' } : undefined]}>{passwordEnabled ? 'Change Password' : 'Set Password'}</Text>
+                <TouchableOpacity onPress={() => setChangePwVisible(true)} style={styles.changePasswordLink} accessibilityLabel={isPasswordEnabled ? 'Change Password' : 'Set Password'}>
+                  <Text variant="caption" style={[styles.changePasswordText, !isPasswordEnabled ? { color: '#007AFF' } : undefined]}>{isPasswordEnabled ? 'Change Password' : 'Set Password'}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -341,11 +391,12 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                 <View style={styles.inputReadonly}><Text variant="body" color={surname ? '#000' : '#999'}>{surname || 'Add Surname'}</Text></View>
                 <View style={styles.inputReadonly}><Text variant="body" color="#000">{email || 'Email'}</Text></View>
                 <View style={styles.inputReadonly}><Text variant="body" color={mobile ? '#000' : '#999'}>{mobile || 'Add Mobile No'}</Text></View>
+                <View style={styles.inputReadonly}><Text variant="body" color={address ? '#000' : '#999'}>{address || 'Add Address'}</Text></View>
                 <View style={[styles.inputReadonly, styles.inputRow]}>
                   <Text variant="body" style={styles.passwordText}>
-                    {passwordEnabled ? (showPassword ? (password || '') : '********') : ''}
+                    {isPasswordEnabled ? (showPassword ? (password || '') : '********') : ''}
                   </Text>
-                  {passwordEnabled && (
+                  {isPasswordEnabled && (
                     <TouchableOpacity
                       onPress={() => setShowPassword(v => !v)}
                       style={styles.inputIcon}
@@ -357,9 +408,9 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
                 </View>
                 <TouchableOpacity onPress={() => setChangePwVisible(true)}
                   style={styles.changePasswordLink}
-                  accessibilityLabel={passwordEnabled ? 'Change Password' : 'Set Password'}
+                  accessibilityLabel={isPasswordEnabled ? 'Change Password' : 'Set Password'}
                 >
-                  <Text variant="caption" style={[styles.changePasswordText, !passwordEnabled ? { color: '#007AFF' } : undefined]}>{passwordEnabled ? 'Change Password' : 'Set Password'}</Text>
+                  <Text variant="caption" style={[styles.changePasswordText, !isPasswordEnabled ? { color: '#007AFF' } : undefined]}>{isPasswordEnabled ? 'Change Password' : 'Set Password'}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -372,6 +423,29 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      {/* Bottom Bar with icons */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity style={styles.bottomItem} onPress={() => navigation.navigate('Home')} accessibilityLabel="Go to Home">
+          <Ionicons name="home-outline" size={22} color="#333" />
+          <Text variant="caption" style={styles.bottomLabel}>Home</Text>
+        </TouchableOpacity>
+        <View style={styles.bottomItem}>
+          <Ionicons name="person-outline" size={22} color="#007AFF" />
+          <Text variant="caption" style={styles.bottomLabel}>Profile</Text>
+        </View>
+        <TouchableOpacity style={styles.bottomItem} onPress={() => user ? navigation.navigate('AgentHub') : navigation.navigate('Login')} accessibilityLabel="Open Agent hub">
+          <Ionicons name="people-outline" size={22} color="#333" />
+          <Text variant="caption" style={styles.bottomLabel}>Agent</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.bottomItem}
+          onPress={handleLogout}
+          accessibilityLabel="Logout"
+        >
+          <Ionicons name="log-out-outline" size={22} color="#333" />
+          <Text variant="caption" style={styles.bottomLabel}>Logout</Text>
+        </TouchableOpacity>
+      </View>
     </Screen>
   );
 };
@@ -383,7 +457,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingTop: 50,
     flexGrow: 1,
+    paddingBottom: 120,
   },
   middle: {
     flex: 1,
@@ -517,6 +593,12 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: '#fff',
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   inputWithIcon: {
     paddingRight: 42,
@@ -565,6 +647,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     elevation: 4,
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   modalTitle: {
     textAlign: 'center',
@@ -576,6 +663,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 8,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    backgroundColor: '#fff',
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  modalButton: {
+    width: 120,
   },
   inputEditing: {
     color: '#7c7c7c',
@@ -589,6 +694,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     backgroundColor: '#fff',
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   saveButton: {
     width: 120,
@@ -601,6 +712,30 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: -16,
     alignItems: 'center',
+  },
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    zIndex: 100,
+    elevation: 8,
+  },
+  bottomItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomLabel: {
+    marginTop: 4,
+    color: '#333',
   },
 });
 

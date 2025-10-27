@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { AgentStackParamList, ServiceType } from '@icon/config';
 import { Screen, Text, Button } from '@icon/ui';
+import { api } from '@icon/api';
 import { useAgent } from '../providers/AgentProvider';
 import { CARD_COLORS } from '../components/theme'
 import BottomNavBar from '../components/BottomNavBar';
@@ -39,6 +40,26 @@ const StageLabel: Record<StageKey, string> = {
   COMPLETED: 'Completed',
 };
 
+// Common diagnosis options shown as checkboxes in the modal
+const DIAGNOSIS_OPTIONS: string[] = [
+  'Display Issue',
+  'Battery/Power',
+  'Storage/Drive',
+  'OS/Software',
+  'Network',
+  'Peripheral',
+];
+
+// Common install options shown as checkboxes in the modal
+const INSTALL_OPTIONS: string[] = [
+  'Mount Hardware',
+  'Connect Cables',
+  'Install OS',
+  'Setup Drivers',
+  'Configure BIOS',
+  'Cable Management',
+];
+
 const ServiceFlowScreen: React.FC<Props> = ({ navigation, route }) => {
   const { config } = useAgent();
   const { requestId, serviceType, etaMinutes } = route.params;
@@ -56,6 +77,20 @@ const ServiceFlowScreen: React.FC<Props> = ({ navigation, route }) => {
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
 
+  // Modal state for per-step confirmation
+  const [isStepModalOpen, setStepModalOpen] = useState<boolean>(false);
+  const [pendingStage, setPendingStage] = useState<StageKey | null>(null);
+
+  // Diagnosis modal state
+  const [selectedDiagnoses, setSelectedDiagnoses] = useState<string[]>([]);
+  const [otherSelected, setOtherSelected] = useState<boolean>(false);
+  const [otherText, setOtherText] = useState<string>('');
+
+  // Install modal state
+  const [selectedInstallations, setSelectedInstallations] = useState<string[]>([]);
+  const [installOtherSelected, setInstallOtherSelected] = useState<boolean>(false);
+  const [installOtherText, setInstallOtherText] = useState<string>('');
+
   const [etaTargetTs, setEtaTargetTs] = useState<number | null>(null);
   const [timeLeftSec, setTimeLeftSec] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
@@ -64,16 +99,16 @@ const ServiceFlowScreen: React.FC<Props> = ({ navigation, route }) => {
     if (serviceType === 'IN_HOUSE' && typeof etaMinutes === 'number' && etaMinutes > 0) {
       const target = Date.now() + etaMinutes * 60 * 1000;
       setEtaTargetTs(target);
-      setTimeline(prev => [
-        ...prev,
-        {
-          id: `${requestId}-eta-${Date.now()}`,
-          type: 'ETA',
-          description: `ETA set to ${etaMinutes} minutes`,
-          timestamp: new Date().toISOString(),
-          actor: 'AGENT',
-        },
-      ]);
+      const etaEvent = {
+        id: `${requestId}-eta-${Date.now()}`,
+        type: 'ETA' as const,
+        description: `ETA set to ${etaMinutes} minutes`,
+        timestamp: new Date().toISOString(),
+        actor: 'AGENT' as const,
+      };
+      setTimeline(prev => [...prev, etaEvent]);
+      // Persist to shared timeline
+      try { api.timeline.addEvent(requestId, etaEvent); } catch {}
       const tick = () => {
         const secs = Math.max(Math.ceil((target - Date.now()) / 1000), 0);
         setTimeLeftSec(secs);
@@ -98,42 +133,139 @@ const ServiceFlowScreen: React.FC<Props> = ({ navigation, route }) => {
     return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
   };
 
+  // Request advancing to the next stage via modal
   const advance = () => {
     const nextIndex = Math.min(currentIndex + 1, stages.length - 1);
     const nextStage = stages[nextIndex];
+    setPendingStage(nextStage);
+    setStepModalOpen(true);
+  };
+
+  // Request starting visit via modal
+  const startVisit = () => {
+    setPendingStage('START_VISIT');
+    setStepModalOpen(true);
+  };
+
+  // Apply a stage change (after confirmation)
+  const applyStage = (stage: StageKey) => {
+    if (stage === 'START_VISIT') {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      // Hide ETA countdown and button after starting the visit
+      setEtaTargetTs(null);
+      setTimeLeftSec(0);
+      const idx = indexOfStage('START_VISIT');
+      if (idx >= 0) {
+        setCurrentIndex(idx);
+      }
+      const evt = {
+        id: `${requestId}-${Date.now()}`,
+        type: 'START_VISIT' as const,
+        description: 'Started visit',
+        timestamp: new Date().toISOString(),
+        actor: 'AGENT' as const,
+      };
+      setTimeline(prev => [...prev, evt]);
+      try { api.timeline.addEvent(requestId, evt); } catch {}
+      return;
+    }
+    if (stage === 'DIAGNOSIS') {
+      const idx = indexOfStage('DIAGNOSIS');
+      if (idx >= 0) {
+        setCurrentIndex(idx);
+      }
+      const descList = selectedDiagnoses.length ? selectedDiagnoses.join(', ') : 'No selections';
+      const evt: TimelineEvent = {
+        id: `${requestId}-${Date.now()}`,
+        type: 'DIAGNOSIS',
+        description: `Diagnosis: ${descList}`,
+        timestamp: new Date().toISOString(),
+        actor: 'AGENT',
+      };
+      setTimeline(prev => [...prev, evt]);
+      try { api.timeline.addEvent(requestId, evt); } catch {}
+      // Reset diagnosis modal state after applying
+      setSelectedDiagnoses([]);
+      setOtherSelected(false);
+      setOtherText('');
+      return;
+    }
+    const idx = indexOfStage(stage);
+    if (idx >= 0) {
+      setCurrentIndex(idx);
+    }
+    if (stage === 'INSTALL') {
+      const descList = selectedInstallations.length ? selectedInstallations.join(', ') : 'No selections';
+      const evt: TimelineEvent = {
+        id: `${requestId}-${Date.now()}`,
+        type: 'INSTALL',
+        description: `Install: ${descList}`,
+        timestamp: new Date().toISOString(),
+        actor: 'AGENT',
+      };
+      setTimeline(prev => [...prev, evt]);
+      try { api.timeline.addEvent(requestId, evt); } catch {}
+      // Reset install modal state after applying
+      setSelectedInstallations([]);
+      setInstallOtherSelected(false);
+      setInstallOtherText('');
+      return;
+    }
     const evt: TimelineEvent = {
       id: `${requestId}-${Date.now()}`,
-      type: nextStage,
-      description: `Moved to ${StageLabel[nextStage]}`,
+      type: stage,
+      description: `Moved to ${StageLabel[stage]}`,
       timestamp: new Date().toISOString(),
       actor: 'AGENT',
     };
     setTimeline(prev => [...prev, evt]);
-    setCurrentIndex(nextIndex);
+    try { api.timeline.addEvent(requestId, evt); } catch {}
   };
 
-  const startVisit = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+  const closeStepModal = () => {
+    setStepModalOpen(false);
+    setPendingStage(null);
+  };
+
+  const confirmPendingStage = () => {
+    if (!pendingStage) {
+      setStepModalOpen(false);
+      return;
     }
-    // Hide ETA countdown and button after starting the visit
-    setEtaTargetTs(null);
-    setTimeLeftSec(0);
-    const idx = indexOfStage('START_VISIT');
-    if (idx >= 0) {
-      setCurrentIndex(idx);
-    }
-    setTimeline(prev => [
-      ...prev,
-      {
-        id: `${requestId}-${Date.now()}`,
-        type: 'START_VISIT',
-        description: 'Started visit',
-        timestamp: new Date().toISOString(),
-        actor: 'AGENT',
-      },
-    ]);
+    applyStage(pendingStage);
+    setStepModalOpen(false);
+    setPendingStage(null);
+  };
+
+  // Diagnosis selection helpers
+  const toggleDiagnosis = (opt: string) => {
+    setSelectedDiagnoses(prev => (
+      prev.includes(opt) ? prev.filter(o => o !== opt) : [...prev, opt]
+    ));
+  };
+  const toggleOther = () => setOtherSelected(prev => !prev);
+  const addOtherDiagnosis = () => {
+    const t = otherText.trim();
+    if (!t) return;
+    setSelectedDiagnoses(prev => (prev.includes(t) ? prev : [...prev, t]));
+    setOtherText('');
+  };
+
+  // Install selection helpers
+  const toggleInstallOption = (opt: string) => {
+    setSelectedInstallations(prev => (
+      prev.includes(opt) ? prev.filter(o => o !== opt) : [...prev, opt]
+    ));
+  };
+  const toggleInstallOther = () => setInstallOtherSelected(prev => !prev);
+  const addInstallOther = () => {
+    const t = installOtherText.trim();
+    if (!t) return;
+    setSelectedInstallations(prev => (prev.includes(t) ? prev : [...prev, t]));
+    setInstallOtherText('');
   };
 
   const openTimeline = () => {
@@ -184,6 +316,126 @@ const ServiceFlowScreen: React.FC<Props> = ({ navigation, route }) => {
 
       </ScrollView>
 
+      {isStepModalOpen && (
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <TouchableOpacity onPress={closeStepModal} style={styles.modalClose} accessibilityLabel="Close">
+              <Ionicons name="close-outline" size={22} color="#333" />
+            </TouchableOpacity>
+            <Text variant="h3" style={styles.modalTitle}>{pendingStage ? StageLabel[pendingStage] : 'Confirm'}</Text>
+            <Text variant="body" style={styles.modalText}>Confirm this step to proceed.</Text>
+
+            {pendingStage === 'DIAGNOSIS' && (
+              <View style={styles.modalSection}>
+                {DIAGNOSIS_OPTIONS.map(opt => (
+                  <TouchableOpacity key={opt} style={styles.checkboxRow} onPress={() => toggleDiagnosis(opt)}>
+                    <Ionicons
+                      name={selectedDiagnoses.includes(opt) ? 'checkbox-outline' : 'square-outline'}
+                      size={22}
+                      color="#333"
+                      style={styles.checkboxIcon}
+                    />
+                    <Text variant="body" style={styles.checkboxLabel}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
+
+                <TouchableOpacity style={styles.checkboxRow} onPress={toggleOther}>
+                  <Ionicons
+                    name={otherSelected ? 'checkbox-outline' : 'square-outline'}
+                    size={22}
+                    color="#333"
+                    style={styles.checkboxIcon}
+                  />
+                  <Text variant="body" style={styles.checkboxLabel}>Other</Text>
+                </TouchableOpacity>
+
+                {otherSelected && (
+                  <View style={styles.otherInputRow}>
+                    <TextInput
+                      style={styles.otherInput}
+                      value={otherText}
+                      onChangeText={setOtherText}
+                      placeholder="Enter custom diagnosis"
+                    />
+                    <Button title="Add" variant="secondary" size="small" onPress={addOtherDiagnosis} style={styles.otherAddBtn} />
+                  </View>
+                )}
+
+                {selectedDiagnoses.length > 0 ? (
+                  <View style={styles.selectedPreview}>
+                    <Text variant="caption" style={styles.previewLabel}>Selected</Text>
+                    <View style={styles.previewChips}>
+                      {selectedDiagnoses.map(item => (
+                        <View key={item} style={styles.chip}>
+                          <Text variant="caption" style={styles.chipText}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Text variant="caption" style={styles.previewEmpty}>No selections yet</Text>
+                )}
+              </View>
+            )}
+
+            {pendingStage === 'INSTALL' && (
+              <View style={styles.modalSection}>
+                {INSTALL_OPTIONS.map(opt => (
+                  <TouchableOpacity key={opt} style={styles.checkboxRow} onPress={() => toggleInstallOption(opt)}>
+                    <Ionicons
+                      name={selectedInstallations.includes(opt) ? 'checkbox-outline' : 'square-outline'}
+                      size={22}
+                      color="#333"
+                      style={styles.checkboxIcon}
+                    />
+                    <Text variant="body" style={styles.checkboxLabel}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
+
+                <TouchableOpacity style={styles.checkboxRow} onPress={toggleInstallOther}>
+                  <Ionicons
+                    name={installOtherSelected ? 'checkbox-outline' : 'square-outline'}
+                    size={22}
+                    color="#333"
+                    style={styles.checkboxIcon}
+                  />
+                  <Text variant="body" style={styles.checkboxLabel}>Other</Text>
+                </TouchableOpacity>
+
+                {installOtherSelected && (
+                  <View style={styles.otherInputRow}>
+                    <TextInput
+                      style={styles.otherInput}
+                      value={installOtherText}
+                      onChangeText={setInstallOtherText}
+                      placeholder="Enter custom installation task"
+                    />
+                    <Button title="Add" variant="secondary" size="small" onPress={addInstallOther} style={styles.otherAddBtn} />
+                  </View>
+                )}
+
+                {selectedInstallations.length > 0 ? (
+                  <View style={styles.selectedPreview}>
+                    <Text variant="caption" style={styles.previewLabel}>Selected</Text>
+                    <View style={styles.previewChips}>
+                      {selectedInstallations.map(item => (
+                        <View key={item} style={styles.chip}>
+                          <Text variant="caption" style={styles.chipText}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <Text variant="caption" style={styles.previewEmpty}>No selections yet</Text>
+                )}
+              </View>
+            )}
+
+            <Button title="Confirm" variant="primary" onPress={confirmPendingStage} style={styles.modalConfirm} />
+          </View>
+        </View>
+      )}
+
       <View style={styles.bottomNav}>
         <BottomNavBar
           onHome={() => navigation.navigate('Dashboard')}
@@ -214,6 +466,25 @@ const styles = StyleSheet.create({
   stageContent: { flex: 1 },
   actions: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   bottomNav: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopWidth: 1, borderColor: '#eee', backgroundColor: '#fff' },
+  modalBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 20 },
+  modalCard: { width: '92%', maxWidth: 560, backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: CARD_COLORS.border, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4 },
+  modalClose: { position: 'absolute', top: 8, right: 8, padding: 8 },
+  modalTitle: { marginTop: 8, marginRight: 32, color: '#333' },
+  modalText: { marginTop: 8, color: CARD_COLORS.caption },
+  modalConfirm: { marginTop: 16 },
+  modalSection: { marginTop: 12 },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  checkboxIcon: { marginRight: 8 },
+  checkboxLabel: { color: '#333' },
+  otherInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  otherInput: { flex: 1, borderWidth: 1, borderColor: CARD_COLORS.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#fff' },
+  otherAddBtn: { marginLeft: 8 },
+  selectedPreview: { marginTop: 12 },
+  previewLabel: { color: CARD_COLORS.caption, marginBottom: 6 },
+  previewChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { },
+  chipText: { color: '#274B91' },
+  previewEmpty: { marginTop: 8, color: CARD_COLORS.caption },
 });
 
 export default ServiceFlowScreen;

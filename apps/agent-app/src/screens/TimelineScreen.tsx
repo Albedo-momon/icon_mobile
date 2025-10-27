@@ -4,6 +4,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { AgentStackParamList } from '@icon/config';
 import { Screen, Text, Button } from '@icon/ui';
+import { api } from '@icon/api';
 import { useAgent } from '../providers/AgentProvider';
 import { CARD_COLORS } from '../components/theme';
 import BottomNavBar from '../components/BottomNavBar';
@@ -21,13 +22,22 @@ const TimelineScreen: React.FC<Props> = ({ navigation, route }) => {
   const { requestId, events } = route.params;
   const { config } = useAgent();
 
-  const hasEvents = Array.isArray(events) && events.length > 0;
-  const fallbackEvents = config.mockMode
-    ? [
-        { id: `${requestId}-accept`, type: 'ACCEPTED', description: 'Request accepted', timestamp: new Date().toISOString(), actor: 'AGENT' },
-      ]
-    : [];
-  const displayEvents = hasEvents ? events : fallbackEvents;
+  const [loadedEvents, setLoadedEvents] = React.useState<any[]>(Array.isArray(events) ? events : []);
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (loadedEvents.length > 0) return;
+      try {
+        const res = await api.timeline.getEvents(requestId);
+        if (mounted && res.success) {
+          setLoadedEvents(res.data || []);
+        }
+      } catch {}
+    };
+    load();
+    return () => { mounted = false; };
+  }, [requestId]);
+  const displayEvents = loadedEvents.length > 0 ? loadedEvents : (config.mockMode ? [{ id: `${requestId}-accept`, type: 'ACCEPTED', description: 'Request accepted', timestamp: new Date().toISOString(), actor: 'AGENT' }] : []);
 
   return (
     <Screen backgroundColor="#FAF8F2" style={styles.container}>

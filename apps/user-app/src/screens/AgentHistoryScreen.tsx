@@ -206,6 +206,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 10,
     gap: 8,
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
@@ -249,6 +255,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     gap: 6,
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   emptyIconWrap: {
     width: 36,
@@ -267,6 +279,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     marginBottom: 12,
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',

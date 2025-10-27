@@ -35,6 +35,14 @@ export const mockUsers: User[] = [
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
   },
+  {
+    id: '4',
+    email: 'agent2@iconcomputer.com',
+    name: 'Alex Agent',
+    role: 'AGENT',
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
 ];
 
 // In-memory password store for mock users
@@ -42,6 +50,7 @@ export const mockPasswords: Record<string, string> = {
   'admin@iconcomputer.com': 'password123',
   'customer@example.com': 'password123',
   'agent@iconcomputer.com': 'password123',
+  'agent2@iconcomputer.com': 'password123',
 };
 
 export const mockAgents: Agent[] = [
@@ -50,6 +59,14 @@ export const mockAgents: Agent[] = [
     userId: '3',
     shopId: '1',
     user: mockUsers[2],
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
+  },
+  {
+    id: '2',
+    userId: '4',
+    shopId: '2',
+    user: mockUsers[3],
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
   },

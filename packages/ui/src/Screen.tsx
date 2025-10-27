@@ -15,6 +15,7 @@ interface ScreenProps {
   backgroundColor?: string;
   style?: ViewStyle;
   contentContainerStyle?: ViewStyle;
+  showScrollIndicator?: boolean;
 }
 
 export const Screen: React.FC<ScreenProps> = ({
@@ -24,6 +25,7 @@ export const Screen: React.FC<ScreenProps> = ({
   backgroundColor = '#ffffff',
   style,
   contentContainerStyle,
+  showScrollIndicator = false,
 }) => {
   const screenStyle = [
     styles.container,
@@ -35,7 +37,9 @@ export const Screen: React.FC<ScreenProps> = ({
     <ScrollView
       style={screenStyle}
       contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
-      showsVerticalScrollIndicator={false}
+      showsVerticalScrollIndicator={showScrollIndicator}
+      keyboardDismissMode="none"
+      keyboardShouldPersistTaps="always"
     >
       {children}
     </ScrollView>

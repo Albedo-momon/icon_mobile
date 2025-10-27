@@ -12,6 +12,7 @@ export interface ApiEndpoints {
   users: string;
   agents: string;
   products: string;
+  requests: string;
 }
 
 // Runtime environment detection compatible with RN and Node
@@ -38,14 +39,15 @@ export const apiEndpoints: ApiEndpoints = {
   users: '/users',
   agents: '/agents',
   products: '/products',
+  requests: '/requests',
 };
 
 // Environment-specific configurations
 const configs = {
   development: {
     ...defaultConfig,
-    apiUrl: 'http://localhost:3000',
-    mockMode: true,
+    apiUrl: 'http://localhost:8080',
+    mockMode: false,
   },
   staging: {
     ...defaultConfig,

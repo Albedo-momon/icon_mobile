@@ -3,8 +3,9 @@ import { StyleSheet, View, ScrollView, Modal, Image, TouchableOpacity, Pressable
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '@icon/config';
+import { RootStackParamList, TimelineEvent, StageLabel } from '@icon/config';
 import { Screen, Text, Button } from '@icon/ui';
+import { api } from '@icon/api';
 
 type AgentStatusNavProp = StackNavigationProp<RootStackParamList, 'AgentStatus'>;
 type AgentStatusRouteProp = RouteProp<RootStackParamList, 'AgentStatus'>;
@@ -64,9 +65,67 @@ const buildTimeline = (serviceType?: 'IN_HOUSE' | 'IN_SHOP' | 'PC_BUILD') => {
 export default function AgentStatusScreen({ navigation, route }: Props) {
   // Compute timeline from route params
   const serviceType = route?.params?.serviceType;
-  const timelineEntries = React.useMemo(() => buildTimeline(serviceType), [serviceType]);
-  // Placeholder progress; in future, fetch by requestId from route.params
-  const progressIndex = timelineEntries.findIndex(e => e.status === 'current');
+  const requestId = route?.params?.requestId;
+
+  // Loaded events from API, fallback to local build if none
+  const [loadedEvents, setLoadedEvents] = React.useState<TimelineEvent[]>([]);
+  const [eventsLoaded, setEventsLoaded] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchTimeline = async () => {
+      if (!requestId) {
+        setLoadedEvents([]);
+        setEventsLoaded(false);
+        return;
+      }
+      try {
+        const res = await api.timeline.getEvents(requestId);
+        if (isMounted && res?.success && Array.isArray(res.data)) {
+          setLoadedEvents(res.data);
+          setEventsLoaded(true);
+        } else if (isMounted) {
+          setLoadedEvents([]);
+          setEventsLoaded(true);
+        }
+      } catch (e) {
+        if (isMounted) {
+          setLoadedEvents([]);
+          setEventsLoaded(true);
+        }
+      }
+    };
+    fetchTimeline();
+    return () => { isMounted = false; };
+  }, [requestId]);
+
+  const formatEventTime = React.useCallback((iso?: string) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    const hours = d.getHours();
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  }, []);
+
+  // Adapt events to timeline card rendering format
+  const timelineEntries = React.useMemo(() => {
+    if (loadedEvents.length > 0) {
+      return loadedEvents.map((evt, idx, arr) => ({
+        key: `${evt.type}-${evt.timestamp}-${idx}`,
+        stageType: evt.type,
+        title: (StageLabel as any)[evt.type] || (evt.type === 'ACCEPTED' ? 'Agent Accepted' : evt.type),
+        desc: evt.description || ((StageLabel as any)[evt.type] ? `Moved to ${(StageLabel as any)[evt.type]}` : 'Event recorded'),
+        time: formatEventTime(evt.timestamp),
+        status: idx < arr.length - 1 ? ('done' as const) : ('current' as const),
+      }));
+    }
+    return buildTimeline(serviceType);
+  }, [loadedEvents, formatEventTime, serviceType]);
+
+  // Current progress index for rendering
+  const progressIndex = React.useMemo(() => timelineEntries.findIndex(e => e.status === 'current'), [timelineEntries]);
   const [showAgentModal, setShowAgentModal] = React.useState(false);
   // Countdown: start from 3 hours after agent accepts (applies when accepted step reached)
   const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
@@ -83,8 +142,10 @@ export default function AgentStatusScreen({ navigation, route }: Props) {
   }, []);
 
   React.useEffect(() => {
-    // Only run countdown if ETA step has been reached/done
-    const etaReached = timelineEntries.some(e => e.key === 'eta' && (e.status === 'done' || e.status === 'current'));
+    // Only run countdown if ETA step has been reached/done (from events or fallback)
+    const etaReached = loadedEvents.length
+      ? loadedEvents.some(e => e.type === 'ETA')
+      : timelineEntries.some(e => e.key === 'eta' && (e.status === 'done' || e.status === 'current'));
     if (!etaReached) return;
     const endAt = etaConfirmedAt + THREE_HOURS_MS;
     const tick = () => {
@@ -94,7 +155,7 @@ export default function AgentStatusScreen({ navigation, route }: Props) {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [etaConfirmedAt, timelineEntries]);
+  }, [etaConfirmedAt, timelineEntries, loadedEvents]);
 
   const agent = React.useMemo(() => ({
     name: 'Rahul',
@@ -153,7 +214,7 @@ export default function AgentStatusScreen({ navigation, route }: Props) {
                 <Text variant="body" style={styles.cardTitle}>{item.title}</Text>
                 <Text variant="caption" color="#666">{item.desc}</Text>
                 <Text variant="caption" color="#999">{item.time}</Text>
-                {item.key === 'eta' && (item.status === 'done' || item.status === 'current') && (
+                {(item.key === 'eta' || (item as any).stageType === 'ETA') && (item.status === 'done' || item.status === 'current') && (
                   <View style={styles.countdownRow}>
                     <View style={styles.countdownBadge}>
                       <Ionicons name="time-outline" size={16} color="#2C5AA0" />
@@ -163,7 +224,7 @@ export default function AgentStatusScreen({ navigation, route }: Props) {
                     </View>
                   </View>
                 )}
-                {item.key === 'accepted' && item.status === 'done' && (
+                {(item.key === 'accepted' || (item as any).stageType === 'ACCEPTED') && item.status === 'done' && (
                   <View style={styles.agentActionRow}>
                     <Button title="View Agent" onPress={() => setShowAgentModal(true)} />
                   </View>

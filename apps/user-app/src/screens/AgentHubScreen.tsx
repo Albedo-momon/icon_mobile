@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Image, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '@icon/config';
 import { Screen, Text } from '@icon/ui';
 import { useApp } from '../providers/AppProvider';
+import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 
 type AgentHubNavigationProp = StackNavigationProp<RootStackParamList, 'AgentHub'>;
@@ -13,8 +14,21 @@ interface Props {
 }
 
 const AgentHubScreen: React.FC<Props> = ({ navigation }) => {
-  const { user } = useApp();
-  const randomImageUrl = React.useMemo(() => `https://picsum.photos/seed/agenthub-${Math.floor(Math.random() * 100000)}/1200/800`, []);
+  const { user, setUser } = useApp();
+  const { signOut } = useAuth();
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setUser(null);
+      Alert.alert('Logged out', 'You have been logged out', [
+        { text: 'OK', onPress: () => navigation.navigate('Home') }
+      ]);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to logout');
+      console.error('Logout Error:', error);
+    }
+  };
+  const randomImageUrl = React.useMemo(() => 'https://i.dummyjson.com/data/products/1/1.jpg', []);
   return (
     <Screen style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -74,6 +88,14 @@ const AgentHubScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity style={styles.bottomItem} onPress={() => user ? navigation.navigate('AgentHub') : navigation.navigate('Login')} accessibilityLabel="Open Agent hub">
           <Ionicons name="people-outline" size={22} color="#007AFF" />
           <Text variant="caption" style={styles.bottomLabel}>Agent</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.bottomItem}
+          onPress={() => { user ? handleLogout() : navigation.navigate('Login'); }}
+          accessibilityLabel={user ? 'Logout' : 'Login'}
+        >
+          <Ionicons name={user ? 'log-out-outline' : 'log-in-outline'} size={22} color="#333" />
+          <Text variant="caption" style={styles.bottomLabel}>{user ? 'Logout' : 'Login'}</Text>
         </TouchableOpacity>
       </View>
     </Screen>
@@ -136,6 +158,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#eee',
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   cardText: {
     color: '#333',

@@ -99,9 +99,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   button: {
-    fontSize: 8,
+    fontSize: 16,
     fontWeight: '600',
-    lineHeight: 20,
+    lineHeight: 24,
   },
   buttonSm: {
     fontSize: 14,

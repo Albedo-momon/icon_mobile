@@ -132,6 +132,7 @@ export interface NotificationItem {
 }
 
 export type AgentStackParamList = {
+  Login: undefined;
   Dashboard: undefined;
   Settings: undefined;
   Profile: undefined;
@@ -140,6 +141,9 @@ export type AgentStackParamList = {
   ServiceFlow: { requestId: string; serviceType: ServiceType; etaMinutes?: number };
   Timeline: { requestId: string; events?: any[] };
   Notifications: undefined;
+  OnboardingInfo: undefined;
+  OnboardingSkills: { fullName: string; experienceYears: number; age: number; mobile: string };
+  OnboardingPhoto: { fullName: string; experienceYears: number; age: number; mobile: string; skills: string[] };
 };
 
 // Form types
@@ -161,3 +165,37 @@ export interface AppError {
   message: string;
   details?: any;
 }
+
+// Shared timeline types across apps
+export type StageKey =
+  | 'ACCEPT'
+  | 'ETA'
+  | 'START_VISIT'
+  | 'DIAGNOSIS'
+  | 'REPAIR'
+  | 'END_VISIT'
+  | 'BUILD'
+  | 'INSTALL'
+  | 'QA'
+  | 'COMPLETED';
+
+export interface TimelineEvent {
+  id: string;
+  type: StageKey | 'CANCELLED' | 'REASSIGN' | 'ACCEPTED';
+  description?: string;
+  timestamp: string; // ISO string
+  actor: 'AGENT' | 'ADMIN' | 'USER';
+}
+
+export const StageLabel: Record<StageKey, string> = {
+  ACCEPT: 'Accepted',
+  ETA: 'ETA',
+  START_VISIT: 'Start Visit',
+  DIAGNOSIS: 'Diagnosis',
+  REPAIR: 'Repair',
+  END_VISIT: 'End Visit',
+  BUILD: 'PC Build',
+  INSTALL: 'Install',
+  QA: 'Testing & QA',
+  COMPLETED: 'Completed',
+};

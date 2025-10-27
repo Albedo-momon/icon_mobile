@@ -156,7 +156,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           <TextInput
             style={styles.input}
             value={form.email}
-            onChangeText={(value) => handleInputChange('email', value)}
+            onChangeText={(value: string) => handleInputChange('email', value)}
             placeholder="Enter your email"
             keyboardType="email-address"
             autoCapitalize="none"
@@ -171,7 +171,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           <TextInput
             style={styles.input}
             value={form.password}
-            onChangeText={(value) => handleInputChange('password', value)}
+            onChangeText={(value: string) => handleInputChange('password', value)}
             placeholder="Enter your password"
             secureTextEntry
             autoCapitalize="none"
@@ -221,6 +221,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#EEF3FB',
   },
   header: {
     alignItems: 'center',
@@ -246,11 +247,16 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderColor: '#e6e9ef',
+    borderRadius: 10,
     padding: 12,
     fontSize: 16,
     backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   loginButton: {
     marginTop: 20,
@@ -268,6 +274,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginTop: 20,
     marginBottom: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   googleIcon: {
     width: 18,

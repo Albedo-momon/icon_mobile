@@ -1,9 +1,10 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Image, Alert } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '@icon/config';
 import { Screen, Text, Button } from '@icon/ui';
 import { Ionicons } from '@expo/vector-icons';
+import { useApp } from '../providers/AppProvider';
 
 type AgentRequestNavProp = StackNavigationProp<RootStackParamList, 'AgentRequest'>;
 
@@ -49,6 +50,7 @@ const PC_BUILD_OPTIONS = [
 ] as const;
 
 export default function AgentRequestScreen({ navigation }: Props) {
+  const { user } = useApp();
   const [category, setCategory] = React.useState<string | null>(null);
   const [issue, setIssue] = React.useState<string | null>(null);
   const [otherText, setOtherText] = React.useState('');
@@ -57,7 +59,7 @@ export default function AgentRequestScreen({ navigation }: Props) {
   const [serviceType, setServiceType] = React.useState<'IN_HOUSE' | 'IN_SHOP' | 'PC_BUILD' | null>(null);
   // Step state for process timeline
   const [step, setStep] = React.useState<1 | 2 | 3>(1);
-  const randomImageUrl = React.useMemo(() => `https://picsum.photos/seed/agenthub-${Math.floor(Math.random() * 100000)}/1200/800`, []);
+  const randomImageUrl = React.useMemo(() => 'https://i.dummyjson.com/data/products/1/1.jpg', []);
   const serviceLabel = SERVICE_TYPES.find(s => s.key === serviceType)?.label || '';
   const goBackStep = () => {
     setStep(prev => (prev > 1 ? (prev - 1) as 1 | 2 | 3 : prev));
@@ -83,7 +85,23 @@ export default function AgentRequestScreen({ navigation }: Props) {
         : !!issue && (issue === 'Other' ? otherText.trim().length > 0 : true)
   );
 
+  // Require address when service type is In-House
+  const addressRequired = serviceType === 'IN_HOUSE';
+  const hasAddress = !!(user as any)?.address && !!(user as any)?.address.trim();
+  const canSubmitRequest = canSubmit && (!addressRequired || hasAddress);
+
   const submit = () => {
+    if (addressRequired && !hasAddress) {
+      Alert.alert(
+        'Address Required',
+        'Please add your address in Profile to request a home visit.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Go to Profile', onPress: () => navigation.navigate('Profile') },
+        ]
+      );
+      return;
+    }
     // Navigate to AgentStatus with selected model and request details
     navigation.navigate('AgentStatus', {
       requestId: 'mock-' + Date.now(),
@@ -299,7 +317,7 @@ export default function AgentRequestScreen({ navigation }: Props) {
             <View style={styles.actions}>
               <Button title="Back" onPress={goBackStep} />
               <View style={{ height: 8 }} />
-              <Button title="Submit Request" onPress={submit} disabled={!canSubmit} />
+              <Button title="Submit Request" onPress={submit} disabled={!canSubmitRequest} />
             </View>
           )}
         </ScrollView>
@@ -368,6 +386,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 8,
     marginBottom: 12,
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   subItem: {
     flexDirection: 'row',
@@ -391,6 +415,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
     marginBottom: 12,
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   otherLabel: {
     marginBottom: 6,
@@ -405,6 +435,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     color: '#2E2E2E',
     backgroundColor: '#FFFFFF',
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   actions: {
     paddingTop: 8,
@@ -419,6 +455,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 10,
     marginBottom: 12,
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   // Timeline styles
   timelineContainer: {
@@ -501,6 +543,12 @@ const styles = StyleSheet.create({
     borderColor: '#D7D7D7',
     backgroundColor: '#FAF8F2',
     width: '100%',
+    // 3D shadow
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   typeRowSelected: {
     backgroundColor: '#2E2E2E',
